@@ -15,8 +15,8 @@ endif
 
 #intel
 ifeq ($(SYSTEM),INTEL)
-#OPTFLAGS = -O3 -traceback -ip -heap-arrays -openmp
-OPTFLAGS = -openmp -O3 -ip
+#OPTFLAGS = -O3 -traceback -ip -heap-arrays -qopenmp
+OPTFLAGS = -qopenmp -O3 -ip
 CC=mpiicc
 F90=mpiifort
 CCFLAGS = $(OPTFLAGS)
@@ -39,8 +39,8 @@ endif
 
 LINK=$(F90)
 
-OBJS=  HACApK_FPGA.o m_bem-bb-fw-coordinate.o HACApK_lib.o bem-bb-template-SCM-0.4.1.o m_HACApK_calc_entry_ij.o \
-	 m_HACApK_base.o m_HACApK_solve.o m_HACApK_use.o m_ppohBEM_bembb2hacapk.o bem-bb-fw-HACApK-0.4.1.o \
+OBJS= HACApK_FPGA.o HACApK_lib.o m_ppohBEM_user_func.o m_ppohBEM_matrix_element_ij.o m_HACApK_calc_entry_ij.o \
+	 m_HACApK_base.o m_HACApK_solve.o m_HACApK_use.o m_ppohBEM_bembb2hacapk.o bem-bb-fw-HACApK-0.4.2.o \
 
 
 TARGET=bem-bb-SCM.out
@@ -51,10 +51,10 @@ $(TARGET): $(OBJS)
 			$(LINK) -o $@ $(OBJS) $(LDFLAGS)
 
 .c.o: *.c
-			$(CC) -g -c $(CCFLAGS) $<
+			$(CC) -c $(CCFLAGS) $<
 .f90.o: *.f90
 #			echo 'f90 complile'
-			$(F90) -g -c $< $(F90FLAGS)
+			$(F90) -c $< $(F90FLAGS)
 clean:
 	rm -f *.o *.mod $(TARGET)
 

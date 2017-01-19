@@ -636,9 +636,9 @@ subroutine HACApK_measurez_time_ax_FPGA_lfmtx(st_leafmtxp,st_ctl,nd,nstp,lrtrn) 
  do il=1,mstep
    u(:)=1.0; b(:)=1.0
    call c_HACApK_adot_body_lfmtx(u,st_leafmtxp,b,wws)
-    print*,'c_HACApK_adot_body_lfmtx end'
  enddo
 !$omp end parallel
+    print*,'c_HACApK_adot_body_lfmtx end'
  deallocate(wws)
 end subroutine HACApK_measurez_time_ax_FPGA_lfmtx
 
