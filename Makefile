@@ -1,6 +1,7 @@
 #SYSTEM = FX10
-SYSTEM = INTEL
+#SYSTEM = INTEL
 #SYSTEM = XC30
+SYSTEM = TSUBAME
 
 #FX10
 ifeq ($(SYSTEM),FX10)
@@ -35,6 +36,16 @@ CC=cc
 F90=ftn
 CCFLAGS = $(OPTFLAGS)
 F90FLAGS = $(OPTFLAGS)
+endif
+
+# TSUBAME
+ifeq ($(SYSTEM),TSUBAME)
+OPTFLAGS = -qopenmp -O3 -ip
+CC=mpiicc
+F90=mpiifort
+CCFLAGS = $(OPTFLAGS)
+F90FLAGS = $(OPTFLAGS) -fpp
+LDFLAGS = -mkl
 endif
 
 LINK=$(F90)
