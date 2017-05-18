@@ -48,19 +48,32 @@ contains
  icomm=st_ctl%lpmd(1)
  lrtrn=HACApK_generate(st_leafmtxp,st_bemv,st_ctl,gmid,ztol)
  call MPI_Barrier( icomm, ierr )
- lrtrn=HACApK_solve(st_leafmtxp,st_bemv,st_ctl,rhs,sol,ztol)
- call MPI_Barrier( icomm, ierr )
- st_measure_time_ax=MPI_Wtime()
- call HACApK_measurez_time_ax_lfmtx(st_leafmtxp,st_ctl,st_bemv%nd,nstp,lrtrn)
- en_measure_time_ax=MPI_Wtime()
- if(st_ctl%param(1)>0 .and. mpinr==0)  write(6,2000) 'lfmtx; time_AX_once  =',(en_measure_time_ax - st_measure_time_ax)/st_ctl%param(99)
- st_measure_time_ax=MPI_Wtime()
- call HACApK_measurez_time_ax_FPGA_lfmtx(st_leafmtxp,st_ctl,st_bemv%nd,nstp,lrtrn)
- en_measure_time_ax=MPI_Wtime()
- if(st_ctl%param(1)>0 .and. mpinr==0)  write(6,2000) 'lfmtx; time_FPGA_AX_once  =',(en_measure_time_ax - st_measure_time_ax)/st_ctl%param(99)
- call MPI_Barrier( icomm, ierr )
- sol(:)=0.0d0
- lrtrn=HACApK_solve_cax(st_leafmtxp,st_bemv,st_ctl,rhs,sol,ztol)
+ if(st_ctl%param(85)==0)then
+    print*, '******** Mat-Vec benchmark only mode ********'
+    ! exec mat-vec benchmark
+    lrtrn=HACApK_solve(st_leafmtxp,st_bemv,st_ctl,rhs,sol,ztol)
+    call MPI_Barrier( icomm, ierr )
+    st_measure_time_ax=MPI_Wtime()
+    call HACApK_measurez_time_ax_lfmtx(st_leafmtxp,st_ctl,st_bemv%nd,nstp,lrtrn)
+    en_measure_time_ax=MPI_Wtime()
+    if(st_ctl%param(1)>0 .and. mpinr==0)  write(6,2000) 'lfmtx; time_AX_once  =',(en_measure_time_ax - st_measure_time_ax)/st_ctl%param(99)
+    call HACApK_setupc(st_leafmtxp,st_ctl,st_bemv%nd,nstp,lrtrn)
+    st_measure_time_ax=MPI_Wtime()
+    call HACApK_measurez_time_ax_lfmtx_c(st_leafmtxp,st_ctl,st_bemv%nd,nstp,lrtrn)
+    en_measure_time_ax=MPI_Wtime()
+    if(st_ctl%param(1)>0 .and. mpinr==0)  write(6,2000) 'lfmtx; time_AX_c_once  =',(en_measure_time_ax - st_measure_time_ax)/st_ctl%param(99)
+ else
+    ! exec solver
+    sol(:)=0.0d0
+    if(st_ctl%param(85)==-1)then
+       ! C BiCGSTAB parallel(hybrid)
+       call HACApK_setupc(st_leafmtxp,st_ctl,st_bemv%nd,nstp,lrtrn)
+       lrtrn=HACApK_solve_cax(st_leafmtxp,st_bemv,st_ctl,rhs,sol,ztol)
+    else
+       ! Fortran BiCGSTAB / GCR(m)
+       lrtrn=HACApK_solve(st_leafmtxp,st_bemv,st_ctl,rhs,sol,ztol)
+    endif
+ endif
  call MPI_Barrier( icomm, ierr )
  
 9999 continue
@@ -172,7 +185,7 @@ contains
  endif
 9999 continue
  HACApK_generate=lrtrn
- endfunction
+endfunction HACApK_generate
 
 !*** HACApK_solve
  integer function HACApK_solve(st_leafmtxp,st_bemv,st_ctl,rhs,sol,ztol)
@@ -208,7 +221,7 @@ contains
      zzz=HACApK_entry_ij(il,il,st_bemv)
      ao(il)=1.0d0/zzz
    enddo
-   
+
    call MPI_Barrier( icomm, ierr )
    st_measure_time_bicgstab=MPI_Wtime()
    if(param(85)==1)then
@@ -234,7 +247,7 @@ contains
  endif
 9999 continue
  HACApK_solve=lrtrn
- endfunction
+endfunction HACApK_solve
 
 !*** HACApK_solve_cax
  integer function HACApK_solve_cax(st_leafmtxp,st_bemv,st_ctl,rhs,sol,ztol)
@@ -252,7 +265,7 @@ contains
  lpmd => st_ctl%lpmd(:); lnp(0:) => st_ctl%lnp; lsp(0:) => st_ctl%lsp;lthr(0:) => st_ctl%lthr;lod => st_ctl%lod(:); param=>st_ctl%param(:)
  mpinr=lpmd(3); mpilog=lpmd(4); nrank=lpmd(2); icomm=lpmd(1); nthr=lpmd(20)
  param(91)=ztol
- if(st_ctl%param(1)>0 .and. mpinr==0) print*,'HACApK_solve_cx start'
+ if(st_ctl%param(1)>0 .and. mpinr==0) print*,'HACApK_solve_cax start'
  nofc=st_bemv%nd;nffc=1;ndim=3
  nd=nofc*nffc
  if(st_ctl%param(1)>1) write(*,*) 'irank=',mpinr,' lthr=',lthr(0:nthr-1)
@@ -270,16 +283,11 @@ contains
      zzz=HACApK_entry_ij(il,il,st_bemv)
      ao(il)=1.0d0/zzz
    enddo
-   
+
    call MPI_Barrier( icomm, ierr )
    st_measure_time_bicgstab=MPI_Wtime()
-   if(param(85)==1)then
-!     call HACApK_bicgstab_lfmtx(st_leafmtxp,st_ctl,u,b,param,nd,nstp,lrtrn)
-     call HACApK_bicgstab_cax_lfmtx_hyp(st_leafmtxp,st_ctl,u,b,param,nd,nstp,lrtrn)
-   elseif(param(85)==2)then
-     call HACApK_gcrm_lfmtx(st_leafmtxp,st_ctl,st_bemv,u,b,param,nd,nstp,lrtrn)
-   else
-   endif
+   ! C BiCGSTAB parallel(hybrid)
+   call HACApK_bicgstab_cax_lfmtx_hyp(st_leafmtxp,st_ctl,u,b,param,nd,nstp,lrtrn)
    call MPI_Barrier( icomm, ierr )
    en_measure_time_bicgstab=MPI_Wtime()
    time_bicgstab = en_measure_time_bicgstab - st_measure_time_bicgstab
@@ -296,6 +304,6 @@ contains
  endif
 9999 continue
  HACApK_solve_cax=lrtrn
- endfunction
+endfunction HACApK_solve_cax
 
 endmodule m_HACApK_use

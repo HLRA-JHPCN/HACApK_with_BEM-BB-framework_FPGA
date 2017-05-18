@@ -131,7 +131,7 @@ integer function HACApK_init(nd,st_ctl,st_bemv,icomma)
  st_ctl%param(64)=1;        ! ACA : minimun kt
  st_ctl%param(72)=1.0e-3;   ! ACA_EPS
  st_ctl%param(83)=500;      ! solver : maximum iterative number
- st_ctl%param(85)=1;        ! solver : 1:BiCGSTAB 2:GCR(m)
+ st_ctl%param(85)=1;        ! solver : 1:BiCGSTAB 2:GCR(m) -1:BiCGSTAB_C 0:MatVec
  st_ctl%param(87)=8;        ! solver : number of iteration for reset
  st_ctl%param(99)=100       ! Measure the time of Ax; iterative number
  ierr=0; lrtrn=0

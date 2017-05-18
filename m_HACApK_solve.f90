@@ -90,6 +90,8 @@ contains
  integer*4 :: ISTATUS(MPI_STATUS_SIZE)
  integer*4,pointer :: lpmd(:),lnp(:),lsp(:),lthr(:)
 ! integer*4,dimension(:),allocatable :: ISTATUS
+ character*80 filename
+ integer,save :: count=0
  1000 format(5(a,i10)/)
  2000 format(5(a,f10.4)/)
 
@@ -100,9 +102,19 @@ contains
  zau(:nd)=0.0d0
 !$omp barrier
 !!! call HACApK_adot_body_lfmtx_hyp(zau,st_leafmtxp,st_ctl,zu,nd)
-   call c_HACApK_adot_body_lfmtx(zau,st_leafmtxp,zu,wws)
+! call c_HACApK_adot_body_lfmtx(zau,st_leafmtxp,zu,wws)
+ call c_HACApK_adot_body_lfmtx_hyp(zau,st_leafmtxp,zu,nd,st_ctl%lthr)
 !$omp barrier
 !$omp master
+! if(st_ctl%param(1)==2)then
+!    if(count==0)then
+!       write(filename,"('u',I0.2,'c.txt')")nrank
+!       open(nrank+10,FILE=filename,status='replace')
+!       write(nrank+10,*)zau(:nd)
+!       close(nrank+10)
+!       count = 1
+!    endif
+! endif
  if(nrank>1)then
    wws(1:lnp(mpinr))=zau(lsp(mpinr):lsp(mpinr)+lnp(mpinr)-1)
    ncdp=mod(mpinr+1,nrank)
@@ -132,6 +144,8 @@ contains
  integer*4 :: ISTATUS(MPI_STATUS_SIZE)
  integer*4,pointer :: lpmd(:),lnp(:),lsp(:),lthr(:)
 ! integer*4,dimension(:),allocatable :: ISTATUS
+ character*80 filename
+ integer,save :: count=0
  1000 format(5(a,i10)/)
  2000 format(5(a,f10.4)/)
 
@@ -144,6 +158,15 @@ contains
  call HACApK_adot_body_lfmtx_hyp(zau,st_leafmtxp,st_ctl,zu,nd)
 !$omp barrier
 !$omp master
+! if(st_ctl%param(1)==2)then
+!    if(count==0)then
+!       write(filename,"('u',I0.2,'f.txt')")nrank
+!       open(nrank+10,FILE=filename,status='replace')
+!       write(nrank+10,*)zau(1:nd)
+!       close(nrank+10)
+!       count = 1
+!    endif
+! endif
  if(nrank>1)then
    wws(1:lnp(mpinr))=zau(lsp(mpinr):lsp(mpinr)+lnp(mpinr)-1)
    ncdp=mod(mpinr+1,nrank)
@@ -219,6 +242,9 @@ contains
  ith = omp_get_thread_num()
  ith1 = ith+1
  nths=ltmp(ith); nthe=ltmp(ith1)-1
+! !$omp critical
+!  write(*,*)ith,"nths=",nths,"nthe=",nthe
+! !$omp end critical
  allocate(zaut(nd)); zaut(:)=0.0d0
  allocate(zbut(ktmax)) 
  ls=nd; le=1
@@ -248,7 +274,9 @@ contains
    endif
  enddo
  deallocate(zbut)
- 
+! !$omp critical
+!  write(*,*)ith,"ls=",ls,"le=",le
+! !$omp end critical
  do il=ls,le
 !$omp atomic
    zau(il)=zau(il)+zaut(il)
@@ -361,7 +389,7 @@ end subroutine HACApK_bicgstab_lfmtx
  mpinr=lpmd(3); mpilog=lpmd(4); nrank=lpmd(2); icomm=lpmd(1)
    call MPI_Barrier( icomm, ierr )
    st_measure_time=MPI_Wtime()
- if(st_ctl%param(1)>0 .and. mpinr==0) print*,'HACApK_bicgstab_lfmtx_hyp start'
+ if(st_ctl%param(1)>0 .and. mpinr==0) print*,'HACApK_bicgstab_cax_lfmtx_hyp start'
  mstep=param(83)
  eps=param(91)
  allocate(wws(maxval(lnp(0:nrank-1))),wwr(maxval(lnp(0:nrank-1))))
@@ -398,7 +426,7 @@ end subroutine HACApK_bicgstab_lfmtx
    zt(:nd)=zr(:nd)-alpha*zakp(:nd)
    zkt(:nd)=zt(:nd)
 !$omp end workshare
-   call HACApK_adot_lfmtx_hyp(zakt,st_leafmtxp,st_ctl,zkt,wws,wwr,isct,irct,nd)
+   call HACApK_adot_cax_lfmtx_hyp(zakt,st_leafmtxp,st_ctl,zkt,wws,wwr,isct,irct,nd)
 !$omp barrier
 !$omp single
    znom=HACApK_dotp_d(nd,zakt,zt); zden=HACApK_dotp_d(nd,zakt,zakt);
@@ -564,7 +592,7 @@ end subroutine HACApK_bicgstab_lfmtx_hyp
    enddo
  enddo
  nstp=in
-end subroutine
+end subroutine HACApK_gcrm_lfmtx
 
 !***HACApK_measurez_time_ax_lfmtx
  subroutine HACApK_measurez_time_ax_lfmtx(st_leafmtxp,st_ctl,nd,nstp,lrtrn)
@@ -591,6 +619,31 @@ end subroutine
  deallocate(wws,wwr)
 end subroutine HACApK_measurez_time_ax_lfmtx
 
+!***HACApK_measurez_time_ax_lfmtx_c
+ subroutine HACApK_measurez_time_ax_lfmtx_c(st_leafmtxp,st_ctl,nd,nstp,lrtrn)
+ include 'mpif.h'
+ type(st_HACApK_leafmtxp) :: st_leafmtxp
+ type(st_HACApK_lcontrol) :: st_ctl
+ real*8,dimension(:),allocatable :: wws,wwr,u,b
+ integer*4 :: isct(2),irct(2)
+ real*8,pointer :: param(:)
+ integer*4,pointer :: lpmd(:),lnp(:),lsp(:),lthr(:)
+ 1000 format(5(a,i10)/)
+ 2000 format(5(a,f10.4)/)
+
+ lpmd => st_ctl%lpmd(:); lnp(0:) => st_ctl%lnp; lsp(0:) => st_ctl%lsp;lthr(0:) => st_ctl%lthr; param=>st_ctl%param(:)
+ mpinr=lpmd(3); mpilog=lpmd(4); nrank=lpmd(2); icomm=lpmd(1)
+ mstep=param(99)
+ allocate(u(nd),b(nd),wws(maxval(lnp(0:nrank-1))),wwr(maxval(lnp(0:nrank-1))))
+!$omp parallel private(il)
+ do il=1,mstep
+   u(:)=1.0; b(:)=1.0
+   call HACApK_adot_cax_lfmtx_hyp(u,st_leafmtxp,st_ctl,b,wws,wwr,isct,irct,nd)
+ enddo
+!$omp end parallel
+ deallocate(wws,wwr)
+end subroutine HACApK_measurez_time_ax_lfmtx_c
+
 !***HACApK_measurez_time_ax_FPGA_lfmtx
 subroutine HACApK_measurez_time_ax_FPGA_lfmtx(st_leafmtxp,st_ctl,nd,nstp,lrtrn) bind(C)
  use, intrinsic ::  iso_c_binding
@@ -611,7 +664,6 @@ subroutine HACApK_measurez_time_ax_FPGA_lfmtx(st_leafmtxp,st_ctl,nd,nstp,lrtrn) 
 !!!
  1000 format(5(a,i10)/)
  2000 format(5(a,f10.4)/)
-
 
  lpmd => st_ctl%lpmd(:); lnp(0:) => st_ctl%lnp; lsp(0:) => st_ctl%lsp;lthr(0:) => st_ctl%lthr; param=>st_ctl%param(:)
  mpinr=lpmd(3); mpilog=lpmd(4); nrank=lpmd(2); icomm=lpmd(1)
@@ -639,8 +691,46 @@ subroutine HACApK_measurez_time_ax_FPGA_lfmtx(st_leafmtxp,st_ctl,nd,nstp,lrtrn) 
  enddo
 !$omp end parallel
     print*,'c_HACApK_adot_body_lfmtx end'
+
  deallocate(wws)
 end subroutine HACApK_measurez_time_ax_FPGA_lfmtx
+
+subroutine HACApK_setupc(st_leafmtxp,st_ctl,nd,nstp,lrtrn) bind(C)
+ use, intrinsic ::  iso_c_binding
+ include 'mpif.h'
+ type(st_HACApK_leafmtxp) :: st_leafmtxp
+ type(st_HACApK_lcontrol) :: st_ctl
+ integer*4 :: isct(2),irct(2)
+ real*8,pointer :: param(:)
+ integer*4,pointer :: lpmd(:),lnp(:),lsp(:),lthr(:)
+!!!
+ type(st_HACApk_leafmtx),pointer :: tmpleafmtx(:)
+ type(st_HACApk_leafmtxp) :: tmpleafmtxp
+ pointer (stpt, tmpleafmtxp)
+ real*8 :: tmptmpa1
+ pointer (a1pt, tmptmpa1)
+ integer*8 :: stpt2, a2pt
+!!!
+ 1000 format(5(a,i10)/)
+ 2000 format(5(a,f10.4)/)
+
+ lpmd => st_ctl%lpmd(:); lnp(0:) => st_ctl%lnp; lsp(0:) => st_ctl%lsp;lthr(0:) => st_ctl%lthr; param=>st_ctl%param(:)
+ mpinr=lpmd(3); mpilog=lpmd(4); nrank=lpmd(2); icomm=lpmd(1)
+ mstep=param(99)
+!!! 
+ tmpleafmtx => st_leafmtxp%st_lf
+ stpt=loc(tmpleafmtx(1))
+ stpt2 = stpt
+ stpt = loc(tmpleafmtx(2))
+ st_leafmtxp%st_lf_stride = stpt-stpt2
+
+ do ill=1,st_leafmtxp%nlf
+    a1pt = loc(tmpleafmtx(ill)%a2(:,:))
+    a2pt = a1pt
+    a1pt = loc(tmpleafmtx(ill)%a1(:,:))
+    tmpleafmtx(ill)%a1size =a2pt-a1pt
+ enddo
+end subroutine HACApK_setupc
 
 !***HACApK_adot_pmt_lfmtx_p
  integer function HACApK_adot_pmt_lfmtx_p(st_leafmtxp,st_bemv,st_ctl,aww,ww)
