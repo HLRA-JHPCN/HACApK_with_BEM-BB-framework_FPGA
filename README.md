@@ -31,3 +31,7 @@ if(Mat-Vecベンチマークをしたいだけの場合){
 1: BiCGSTAB
 2: GCM(m)
 
+実行時に使うものの指定にはbem-bb-config.txtの第2パラメタを利用。
+BICGSTAB_C を指定するとC版のBiCGSTAB、
+MATVEC を指定するとMat-Vecカーネルのベンチマークのみを実行（ソルバーを起動しない）。
+
