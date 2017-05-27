@@ -48,6 +48,17 @@ F90FLAGS = $(OPTFLAGS) -fpp
 LDFLAGS = -mkl
 endif
 
+# PGI compiler
+ifeq ($(SYSTEM),PGI)
+OPTFLAGS = -mp -O2
+CC=mpicc
+F90=mpifort
+CCFLAGS = $(OPTFLAGS) -D_PGI
+F90FLAGS = $(OPTFLAGS)
+LDFLAGS = -lblas -llapack -mp
+endif
+
+
 LINK=$(F90)
 
 OBJS= HACApK_FPGA.o HACApK_lib.o m_ppohBEM_user_func.o m_ppohBEM_matrix_element_ij.o m_HACApK_calc_entry_ij.o \

@@ -3,7 +3,9 @@
 #include	<time.h>
 #include	"mpi.h"
 #include	"HACApK_FPGA.h"
+#ifndef _PGI
 #include        <ISO_Fortran_binding.h>
+#endif
 
 //!***c_HACApK_adot_body_lfmtx
  void  c_hacapk_adot_body_lfmtx_

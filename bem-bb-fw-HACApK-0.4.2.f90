@@ -185,7 +185,7 @@ program ppohBEM_bem_bb_dense_mpi
       st_ctl%param(85)=0
       print*, 'solver: Mat-Vec only'
     else
-      print*, 'Error: Invalid ppohBEM_linear_solver'
+      print*, 'Error: Invalid ppohBEM_linear_solver (',ppohBEM_linear_solver,')'
       goto 1000
     endif
 !    if(st_ctl%param(1)>1)  print*,'func Hacapk_Init end'
