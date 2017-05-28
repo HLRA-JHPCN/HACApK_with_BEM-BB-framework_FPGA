@@ -1,7 +1,8 @@
 #include	<stdio.h>
 #include	<stdlib.h>
 #include	<time.h>
-#include	"mpi.h"
+#include	<mpi.h>
+#include <omp.h>
 #include	"HACApK_FPGA.h"
 #ifndef _PGI
 #include        <ISO_Fortran_binding.h>
@@ -76,18 +77,20 @@
  int ls, le;
  double *zaut, *zbut;
  int nd = pnd[0];
+ char filename[0xff];
+ FILE *F;
 
  nlf=st_leafmtxp->nlf;
  ith = omp_get_thread_num();
+ snprintf(filename,0xff,"c_%02d.txt",ith);
+ F=fopen(filename,"w");
+ if(F==NULL){printf("can't open %s\n",filename);exit(-1);}
+ fprintf(F,"%d\n",nlf);
+ fprintf(F,"%d\n",ith);
  nths = ltmp[ith];
  nthe = ltmp[ith+1]-1;
- /*
-#pragma omp critical
- {
-   fprintf(stderr, "%d nths=%d, nthe=%d\n", ith, nths, nthe);
-   fprintf(stderr, "nd=%d, ktmax=%d\n", nd, st_leafmtxp->ktmax);
- }
- */
+ fprintf(F, "%d nths=%d, nthe=%d\n", ith, nths, nthe);
+ fprintf(F, "nd=%d, ktmax=%d\n", nd, st_leafmtxp->ktmax);
  zaut = (double*)malloc(sizeof(double)*nd); for(il=0;il<nd;il++)zaut[il]=0.0;
  zbut = (double*)malloc(sizeof(double)*st_leafmtxp->ktmax);
  ls = nd;
@@ -105,7 +108,7 @@
    ndt   =sttmp->ndt;
    nstrtl=sttmp->nstrtl;
    nstrtt=sttmp->nstrtt;
-   //fprintf(stderr,"ip=%d, ndl=%d, ndt=%d, nstrtl=%d, nstrtt=%d \n",ip,ndl,ndt,nstrtl,nstrtt);
+   //fprintf(F,"ip=%d, ndl=%d, ndt=%d, nstrtl=%d, nstrtt=%d \n",ip,ndl,ndt,nstrtl,nstrtt);
    if(nstrtl<ls)ls=nstrtl;
    if(nstrtl+ndl-1>le)le=nstrtl+ndl-1;
    if(sttmp->ltmtx==1){
@@ -151,4 +154,5 @@
    zau[il] += zaut[il];
  }
  free(zaut); free(zbut);
+ fclose(F);
 }

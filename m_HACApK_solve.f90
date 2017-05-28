@@ -100,6 +100,9 @@ contains
  mpinr=lpmd(3); mpilog=lpmd(4); nrank=lpmd(2); icomm=lpmd(1)
  ndnr_s=lpmd(6); ndnr_e=lpmd(7); ndnr=lpmd(5)
  zau(:nd)=0.0d0
+!$omp critical
+write(*,*)st_ctl%lthr
+!$omp end critical
 !$omp barrier
 !!! call HACApK_adot_body_lfmtx_hyp(zau,st_leafmtxp,st_ctl,zu,nd)
 ! call c_HACApK_adot_body_lfmtx(zau,st_leafmtxp,zu,wws)
@@ -233,6 +236,7 @@ contains
  real*8,dimension(:),allocatable :: zbut
  real*8,dimension(:),allocatable :: zaut
  integer*4,pointer :: lpmd(:),lnp(:),lsp(:),ltmp(:)
+ character filename*100
  1000 format(5(a,i10)/)
  2000 format(5(a,f10.4)/)
 
@@ -240,11 +244,12 @@ contains
  mpinr=lpmd(3); mpilog=lpmd(4); nrank=lpmd(2); icomm=lpmd(1)
  nlf=st_leafmtxp%nlf; ktmax=st_leafmtxp%ktmax
  ith = omp_get_thread_num()
+ write(filename,"('f_',I0.2,'.txt')")ith
+ open(ith+10,FILE=filename,status='replace')
  ith1 = ith+1
  nths=ltmp(ith); nthe=ltmp(ith1)-1
-! !$omp critical
-!  write(*,*)ith,"nths=",nths,"nthe=",nthe
-! !$omp end critical
+ write(ith+10,*)ith,"nths=",nths,"nthe=",nthe
+write(ith+10,*)nd,ktmax
  allocate(zaut(nd)); zaut(:)=0.0d0
  allocate(zbut(ktmax)) 
  ls=nd; le=1
@@ -281,6 +286,7 @@ contains
 !$omp atomic
    zau(il)=zau(il)+zaut(il)
  enddo
+ close(ith+10)
  end subroutine HACApK_adot_body_lfmtx_hyp
  
 !***HACApK_adotsub_lfmtx_p
