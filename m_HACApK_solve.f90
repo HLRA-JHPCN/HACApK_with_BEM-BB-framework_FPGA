@@ -503,7 +503,7 @@ end subroutine HACApK_bicgstab_cax_lfmtx_hyp
  allocate(zr(nd),zshdw(nd),zp(nd),zt(nd),zkp(nd),zakp(nd),zkt(nd),zakt(nd))
  alpha = 0.0;  beta = 0.0;  zeta = 0.0;
  zz=HACApK_dotp_d(nd, b, b); bnorm=dsqrt(zz);
-!$omp parallel
+!$omp parallel private(time_1b,time_1e,time_mpi,time_matvec,in)
 !$omp workshare
  zp(1:nd)=0.0d0; zakp(1:nd)=0.0d0
  zr(:nd)=b(:nd)
