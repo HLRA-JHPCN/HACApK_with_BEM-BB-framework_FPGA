@@ -557,9 +557,9 @@ end subroutine HACApK_bicgstab_cax_lfmtx_hyp
    if(in.eq.2)then
       time_1e = MPI_Wtime()
       if(mpinr.eq.0)then
-         write(*,*)"BiCGSTAB_1ITER",time1e-time1b
-         write(*,*)"BiCGSTAB_MATVEC",time_matvec
-         write(*,*)"BiCGSTAB_MPI",time_mpi
+         write(*,*)"TIME_BiCGSTAB_1ITER",time_1e-time_1b
+         write(*,*)"TIME_BiCGSTAB_MATVEC",time_matvec
+         write(*,*)"TIME_BiCGSTAB_MPI",time_mpi
       endif
    endif
    time = en_measure_time - st_measure_time
