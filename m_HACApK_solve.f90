@@ -163,6 +163,63 @@ contains
 ! stop
  end subroutine HACApK_adot_lfmtx_hyp
 
+!***HACApK_adot_lfmtx_hyp
+ subroutine HACApK_adot_lfmtx_hyp_detail(zau,st_leafmtxp,st_ctl,zu,wws,wwr,isct,irct,nd, in,time_mpi,time_matvec)
+ include 'mpif.h'
+ type(st_HACApK_leafmtxp) :: st_leafmtxp
+ type(st_HACApK_lcontrol) :: st_ctl
+ real*8 :: zau(*),zu(*),wws(*),wwr(*)
+ integer*4 :: isct(*),irct(*)
+ integer*4 :: ISTATUS(MPI_STATUS_SIZE)
+ integer*4,pointer :: lpmd(:),lnp(:),lsp(:),lthr(:)
+! integer*4,dimension(:),allocatable :: ISTATUS
+ integer :: in
+ real*8 :: time_mpi, time_matvec, time_b, time_e
+ 1000 format(5(a,i10)/)
+ 2000 format(5(a,f10.4)/)
+
+ lpmd => st_ctl%lpmd(:); lnp(0:) => st_ctl%lnp; lsp(0:) => st_ctl%lsp;lthr(0:) => st_ctl%lthr
+! allocate(ISTATUS(MPI_STATUS_SIZE))
+ mpinr=lpmd(3); mpilog=lpmd(4); nrank=lpmd(2); icomm=lpmd(1)
+ ndnr_s=lpmd(6); ndnr_e=lpmd(7); ndnr=lpmd(5)
+ zau(:nd)=0.0d0
+!$omp barrier
+ if(in.eq.2)then
+    time_1b = MPI_Wtime()
+ endif
+ call HACApK_adot_body_lfmtx_hyp(zau,st_leafmtxp,st_ctl,zu,nd)
+ if(in.eq.2)then
+    time_1e = MPI_Wtime()
+    time_matvec = time_matvec + (time_1e - time_1b)
+ endif
+!$omp barrier
+!$omp master
+ if(nrank>1)then
+   wws(1:lnp(mpinr))=zau(lsp(mpinr):lsp(mpinr)+lnp(mpinr)-1)
+   ncdp=mod(mpinr+1,nrank)
+   ncsp=mod(mpinr+nrank-1,nrank)
+   isct(1)=lnp(mpinr);isct(2)=lsp(mpinr); 
+   if(in.eq.2)then
+      time_1b = MPI_Wtime()
+   endif
+   do ic=1,nrank-1
+     call MPI_SENDRECV(isct,2,MPI_INTEGER,ncdp,1, &
+                       irct,2,MPI_INTEGER,ncsp,1,icomm,ISTATUS,ierr)
+     call MPI_SENDRECV(wws,isct,MPI_DOUBLE_PRECISION,ncdp,1, &
+                       wwr,irct,MPI_DOUBLE_PRECISION,ncsp,1,icomm,ISTATUS,ierr)
+     zau(irct(2):irct(2)+irct(1)-1)=zau(irct(2):irct(2)+irct(1)-1)+wwr(:irct(1))
+     wws(:irct(1))=wwr(:irct(1))
+     isct(:2)=irct(:2)
+   enddo
+   if(in.eq.2)then
+      time_1e = MPI_Wtime()
+      time_mpi = time_mpi + (time_1e - time_1b)
+   endif
+ endif
+!$omp end master
+! stop
+end subroutine HACApK_adot_lfmtx_hyp_detail
+
 !***HACApK_adot_body_lfmtx
  RECURSIVE subroutine HACApK_adot_body_lfmtx(zau,st_leafmtxp,st_ctl,zu,nd)
  type(st_HACApK_leafmtxp) :: st_leafmtxp
@@ -432,6 +489,7 @@ end subroutine HACApK_bicgstab_cax_lfmtx_hyp
  real*8,dimension(:),allocatable :: wws,wwr
  integer*4,pointer :: lpmd(:),lnp(:),lsp(:),lthr(:)
  integer*4 :: isct(2),irct(2)
+ real*8 :: time_1b, time_1e, time_mpi, time_matvec
  1000 format(5(a,i10)/)
  2000 format(5(a,f10.4)/)
  lpmd => st_ctl%lpmd(:); lnp(0:) => st_ctl%lnp; lsp(0:) => st_ctl%lsp;lthr(0:) => st_ctl%lthr
@@ -461,11 +519,16 @@ end subroutine HACApK_bicgstab_cax_lfmtx_hyp
 !$omp end single
  do in=1,mstep
    if(zrnorm/bnorm<eps) exit
+   if(in.eq.2)then
+      time_1b = MPI_Wtime()
+      time_mpi = 0.0
+      time_matvec = 0.0
+   endif
 !$omp workshare
    zp(:nd) =zr(:nd)+beta*(zp(:nd)-zeta*zakp(:nd))
    zkp(:nd)=zp(:nd)
 !$omp end workshare
-   call HACApK_adot_lfmtx_hyp(zakp,st_leafmtxp,st_ctl,zkp,wws,wwr,isct,irct,nd)
+   call HACApK_adot_lfmtx_hyp_detail(zakp,st_leafmtxp,st_ctl,zkp,wws,wwr,isct,irct,nd, in,time_mpi,time_matvec)
 !$omp barrier
 !$omp single
    znom=HACApK_dotp_d(nd,zshdw,zr); zden=HACApK_dotp_d(nd,zshdw,zakp);
@@ -475,7 +538,7 @@ end subroutine HACApK_bicgstab_cax_lfmtx_hyp
    zt(:nd)=zr(:nd)-alpha*zakp(:nd)
    zkt(:nd)=zt(:nd)
 !$omp end workshare
-   call HACApK_adot_lfmtx_hyp(zakt,st_leafmtxp,st_ctl,zkt,wws,wwr,isct,irct,nd)
+   call HACApK_adot_lfmtx_hyp_detail(zakt,st_leafmtxp,st_ctl,zkt,wws,wwr,isct,irct,nd, in,time_mpi,time_matvec)
 !$omp barrier
 !$omp single
    znom=HACApK_dotp_d(nd,zakt,zt); zden=HACApK_dotp_d(nd,zakt,zakt);
@@ -491,6 +554,14 @@ end subroutine HACApK_bicgstab_cax_lfmtx_hyp
    nstp=in
    call MPI_Barrier( icomm, ierr )
    en_measure_time=MPI_Wtime()
+   if(in.eq.2)then
+      time_1e = MPI_Wtime()
+      if(mpinr.eq.0)then
+         write(*,*)"BiCGSTAB_1ITER",time1e-time1b
+         write(*,*)"BiCGSTAB_MATVEC",time_matvec
+         write(*,*)"BiCGSTAB_MPI",time_mpi
+      endif
+   endif
    time = en_measure_time - st_measure_time
    if(st_ctl%param(1)>0 .and. mpinr==0) print*,in,time,log10(zrnorm/bnorm)
 !$omp end single
