@@ -184,24 +184,18 @@ contains
  ndnr_s=lpmd(6); ndnr_e=lpmd(7); ndnr=lpmd(5)
  zau(:nd)=0.0d0
 !$omp barrier
- if(in.eq.2)then
-    time_1b = MPI_Wtime()
- endif
+ time_1b = MPI_Wtime()
  call HACApK_adot_body_lfmtx_hyp(zau,st_leafmtxp,st_ctl,zu,nd)
- if(in.eq.2)then
-    time_1e = MPI_Wtime()
-    time_matvec = time_matvec + (time_1e - time_1b)
- endif
-!$omp barrier
+ time_1e = MPI_Wtime()
+ time_matvec = time_matvec + (time_1e - time_1b)
+ !$omp barrier
 !$omp master
  if(nrank>1)then
    wws(1:lnp(mpinr))=zau(lsp(mpinr):lsp(mpinr)+lnp(mpinr)-1)
    ncdp=mod(mpinr+1,nrank)
    ncsp=mod(mpinr+nrank-1,nrank)
    isct(1)=lnp(mpinr);isct(2)=lsp(mpinr); 
-   if(in.eq.2)then
-      time_1b = MPI_Wtime()
-   endif
+   time_1b = MPI_Wtime()
    do ic=1,nrank-1
      call MPI_SENDRECV(isct,2,MPI_INTEGER,ncdp,1, &
                        irct,2,MPI_INTEGER,ncsp,1,icomm,ISTATUS,ierr)
@@ -211,10 +205,8 @@ contains
      wws(:irct(1))=wwr(:irct(1))
      isct(:2)=irct(:2)
    enddo
-   if(in.eq.2)then
-      time_1e = MPI_Wtime()
-      time_mpi = time_mpi + (time_1e - time_1b)
-   endif
+   time_1e = MPI_Wtime()
+   time_mpi = time_mpi + (time_1e - time_1b)
  endif
 !$omp end master
 ! stop
@@ -489,13 +481,17 @@ end subroutine HACApK_bicgstab_cax_lfmtx_hyp
  real*8,dimension(:),allocatable :: wws,wwr
  integer*4,pointer :: lpmd(:),lnp(:),lsp(:),lthr(:)
  integer*4 :: isct(2),irct(2)
- real*8 :: time_1b, time_1e, time_mpi, time_matvec
+ double precision :: time_1b, time_1e, time_mpi, time_matvec, time_all
  1000 format(5(a,i10)/)
  2000 format(5(a,f10.4)/)
  lpmd => st_ctl%lpmd(:); lnp(0:) => st_ctl%lnp; lsp(0:) => st_ctl%lsp;lthr(0:) => st_ctl%lthr
  mpinr=lpmd(3); mpilog=lpmd(4); nrank=lpmd(2); icomm=lpmd(1)
-   call MPI_Barrier( icomm, ierr )
-   st_measure_time=MPI_Wtime()
+ call MPI_Barrier( icomm, ierr )
+ st_measure_time=MPI_Wtime()
+ time_all = 0.0d0
+ time_mpi = 0.0d0
+ time_matvec = 0.0d0
+ count = 0
  if(st_ctl%param(1)>0 .and. mpinr==0) print*,'HACApK_bicgstab_lfmtx_hyp start'
  mstep=param(83)
  eps=param(91)
@@ -503,7 +499,7 @@ end subroutine HACApK_bicgstab_cax_lfmtx_hyp
  allocate(zr(nd),zshdw(nd),zp(nd),zt(nd),zkp(nd),zakp(nd),zkt(nd),zakt(nd))
  alpha = 0.0;  beta = 0.0;  zeta = 0.0;
  zz=HACApK_dotp_d(nd, b, b); bnorm=dsqrt(zz);
-!$omp parallel private(time_1b,time_1e,time_mpi,time_matvec,in)
+!$omp parallel private(time_1b,time_1e,time_mpi,time_matvec,in,count,time_all)
 !$omp workshare
  zp(1:nd)=0.0d0; zakp(1:nd)=0.0d0
  zr(:nd)=b(:nd)
@@ -519,11 +515,7 @@ end subroutine HACApK_bicgstab_cax_lfmtx_hyp
 !$omp end single
  do in=1,mstep
    if(zrnorm/bnorm<eps) exit
-   if(in.eq.2)then
-      time_1b = MPI_Wtime()
-      time_mpi = 0.0
-      time_matvec = 0.0
-   endif
+   time_1b = MPI_Wtime()
 !$omp workshare
    zp(:nd) =zr(:nd)+beta*(zp(:nd)-zeta*zakp(:nd))
    zkp(:nd)=zp(:nd)
@@ -554,19 +546,17 @@ end subroutine HACApK_bicgstab_cax_lfmtx_hyp
    nstp=in
    call MPI_Barrier( icomm, ierr )
    en_measure_time=MPI_Wtime()
-   if(in.eq.2)then
-      time_1e = MPI_Wtime()
-      if(mpinr==0)then
-         write(*,*)"TIME_BiCGSTAB_1ITER",time_1e-time_1b,mpinr
-         write(*,*)"TIME_BiCGSTAB_MATVEC",time_matvec,mpinr
-         write(*,*)"TIME_BiCGSTAB_MPI",time_mpi,mpinr
-      endif
-   endif
    time = en_measure_time - st_measure_time
-   if(st_ctl%param(1)>0 .and. mpinr==0) print*,in,time,log10(zrnorm/bnorm)
+   time_1e = MPI_Wtime()
+   time_all = time_all + (time_1e-time_1b)
+   count = count + 1
+  if(st_ctl%param(1)>0 .and. mpinr==0) print*,in,time,log10(zrnorm/bnorm)
 !$omp end master
  enddo
-!$omp end parallel
+ write(*,*)"TIME_BiCGSTAB_ALL", mpinr, time_all, time_all/count
+ write(*,*)"TIME_BiCGSTAB_MATVEC", mpinr, time_matvec, time_matvec/count
+ write(*,*)"TIME_BiCGSTAB_MPI", mpinr, time_mpi, time_mpi/count
+ !$omp end parallel
 end subroutine HACApK_bicgstab_lfmtx_hyp
 
 !***HACApK_gcrm_lfmtx
