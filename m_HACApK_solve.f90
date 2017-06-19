@@ -553,9 +553,11 @@ end subroutine HACApK_bicgstab_cax_lfmtx_hyp
   if(st_ctl%param(1)>0 .and. mpinr==0) print*,in,time,log10(zrnorm/bnorm)
 !$omp end master
  enddo
- write(*,*)"TIME_BiCGSTAB_ALL", mpinr, time_all, time_all/count
- write(*,*)"TIME_BiCGSTAB_MATVEC", mpinr, time_matvec, time_matvec/count
- write(*,*)"TIME_BiCGSTAB_MPI", mpinr, time_mpi, time_mpi/count
+!$omp master
+ write(*,*)"TIME_BiCGSTAB_ALL", mpinr, count, time_all, time_all/count
+ write(*,*)"TIME_BiCGSTAB_MATVEC", mpinr, count, time_matvec, time_matvec/count
+ write(*,*)"TIME_BiCGSTAB_MPI", mpinr, count, time_mpi, time_mpi/count
+!$omp end master
  !$omp end parallel
 end subroutine HACApK_bicgstab_lfmtx_hyp
 
