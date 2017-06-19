@@ -293,6 +293,9 @@ contains
     if( ierr .ne. 0 ) then
       print*, 'Error: MPI_Init failed !!!'
     endif
+    if(required.ne.provided)then
+       write(*,*)"Warning: MPI_THREAD_FUNNELED is not supported"
+    endif
 
     call MPI_Comm_size ( comm, nrank, ierr )
     if( ierr .ne. 0 ) then

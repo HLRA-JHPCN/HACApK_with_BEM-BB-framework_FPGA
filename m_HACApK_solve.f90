@@ -472,6 +472,7 @@ end subroutine HACApK_bicgstab_cax_lfmtx_hyp
 
 !***HACApK_bicgstab_lfmtx_hyp
  subroutine HACApK_bicgstab_lfmtx_hyp(st_leafmtxp,st_ctl,u,b,param,nd,nstp,lrtrn)
+! implicit none
  include 'mpif.h'
  type(st_HACApK_leafmtxp) :: st_leafmtxp
  type(st_HACApK_lcontrol) :: st_ctl
@@ -481,17 +482,16 @@ end subroutine HACApK_bicgstab_cax_lfmtx_hyp
  real*8,dimension(:),allocatable :: wws,wwr
  integer*4,pointer :: lpmd(:),lnp(:),lsp(:),lthr(:)
  integer*4 :: isct(2),irct(2)
- double precision :: time_1b, time_1e, time_mpi, time_matvec, time_all
+ real*8 :: time_1b, time_1e, time_mpi, time_matvec, time_all
+ real*8 :: st_measure_time, en_measure_time, time
+ integer :: count, in, nstp, mpinr, mpilog, nrank, icomm, mstep, ierr, nd, lrtrn
+ real*8 :: alpha, beta, zeta, zzb, bnorm, zrnorm, zden, eps, zz, znom, znomold
  1000 format(5(a,i10)/)
  2000 format(5(a,f10.4)/)
  lpmd => st_ctl%lpmd(:); lnp(0:) => st_ctl%lnp; lsp(0:) => st_ctl%lsp;lthr(0:) => st_ctl%lthr
  mpinr=lpmd(3); mpilog=lpmd(4); nrank=lpmd(2); icomm=lpmd(1)
  call MPI_Barrier( icomm, ierr )
  st_measure_time=MPI_Wtime()
- time_all = 0.0d0
- time_mpi = 0.0d0
- time_matvec = 0.0d0
- count = 0
  if(st_ctl%param(1)>0 .and. mpinr==0) print*,'HACApK_bicgstab_lfmtx_hyp start'
  mstep=param(83)
  eps=param(91)
@@ -500,6 +500,10 @@ end subroutine HACApK_bicgstab_cax_lfmtx_hyp
  alpha = 0.0;  beta = 0.0;  zeta = 0.0;
  zz=HACApK_dotp_d(nd, b, b); bnorm=dsqrt(zz);
 !$omp parallel private(time_1b,time_1e,time_mpi,time_matvec,in,count,time_all)
+ time_all = 0.0d0
+ time_mpi = 0.0d0
+ time_matvec = 0.0d0
+ count = 0
 !$omp workshare
  zp(1:nd)=0.0d0; zakp(1:nd)=0.0d0
  zr(:nd)=b(:nd)
@@ -514,8 +518,11 @@ end subroutine HACApK_bicgstab_cax_lfmtx_hyp
  if(mpinr==0) print*,'Original relative residual norm =',zrnorm/bnorm
 !$omp end single
  do in=1,mstep
+!$omp barrier
    if(zrnorm/bnorm<eps) exit
+!$omp master
    time_1b = MPI_Wtime()
+!$omp end master
 !$omp workshare
    zp(:nd) =zr(:nd)+beta*(zp(:nd)-zeta*zakp(:nd))
    zkp(:nd)=zp(:nd)
@@ -554,9 +561,9 @@ end subroutine HACApK_bicgstab_cax_lfmtx_hyp
 !$omp end master
  enddo
 !$omp master
- write(*,*)"TIME_BiCGSTAB_ALL", mpinr, count, time_all, time_all/count
- write(*,*)"TIME_BiCGSTAB_MATVEC", mpinr, count, time_matvec, time_matvec/count
- write(*,*)"TIME_BiCGSTAB_MPI", mpinr, count, time_mpi, time_mpi/count
+ write(*,'(a,i4,i4,2(1x,E14.6))')"TIME_BiCGSTAB_ALL", mpinr, count, time_all, time_all/count
+ write(*,'(a,i4,i4,2(1x,E14.6))')"TIME_BiCGSTAB_MATVEC", mpinr, count, time_matvec, time_matvec/count
+ write(*,'(a,i4,i4,2(1x,E14.6))')"TIME_BiCGSTAB_MPI", mpinr, count, time_mpi, time_mpi/count
 !$omp end master
  !$omp end parallel
 end subroutine HACApK_bicgstab_lfmtx_hyp

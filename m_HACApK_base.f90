@@ -144,6 +144,9 @@ integer function HACApK_init(nd,st_ctl,st_bemv,icomma)
 !   call MPI_Init ( ierr )
    call MPI_Init_thread ( required, provided, ierr )
    if( ierr .ne. 0 )  print*, 'HACApK_init; Error: MPI_Init failed !!!' 
+    if(required.ne.provided)then
+       write(*,*)"Warning: MPI_THREAD_FUNNELED is not supported"
+    endif
  endif
  call MPI_Comm_size ( icomm, nrank, ierr )
  if(ierr.ne.0) then
@@ -153,6 +156,7 @@ integer function HACApK_init(nd,st_ctl,st_bemv,icomma)
  if(ierr.ne.0) then
     print*, 'Error: MPI_Comm_rank failed !!!'
  endif
+ write(*,*)"MPI: size=",nrank,"rank=",irank
  allocate(st_ctl%lpmd(30)); st_ctl%lpmd(:)=0
  st_ctl%lpmd(1)=icomm; st_ctl%lpmd(2)=nrank; st_ctl%lpmd(3)=irank; st_ctl%lpmd(4)=20
  nthr=1
