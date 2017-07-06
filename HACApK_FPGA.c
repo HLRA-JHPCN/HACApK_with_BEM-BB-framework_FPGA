@@ -11,7 +11,7 @@
  register int ip,il,it;
  int nlf,ndl,ndt,nstrtl,nstrtt,kt,itl,itt,ill;
  int st_lf_stride = st_leafmtxp->st_lf_stride;
- int a1size;
+ int64_t a1size;
  
  nlf=st_leafmtxp->nlf;
   //fprintf(stderr,"nlf=%d \n",nlf);
