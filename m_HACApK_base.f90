@@ -53,7 +53,7 @@ module m_HACApK_base
     integer*4 kt
     integer*4 nstrtl,ndl;
     integer*4 nstrtt,ndt;
-    integer*4 a1size !!!
+    integer*8 a1size !!!
     real*8,pointer :: a1(:,:)=>null(),a2(:,:)=>null()
   end type st_HACApK_leafmtx
 
