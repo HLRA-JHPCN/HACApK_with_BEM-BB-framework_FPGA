@@ -5,7 +5,7 @@ typedef struct stc_HACApK_leafmtx{
   int ndl;
   int nstrtt;
   int ndt;
-  int a1size; //
+  int64_t a1size; //
   double *a1;
   double *a2;
 }stc_HACApK_leafmtx;
