@@ -417,6 +417,7 @@ end subroutine HACApK_bicgstab_lfmtx
    time = en_measure_time - st_measure_time
    if(st_ctl%param(1)>0 .and. mpinr==0) print*,in,time,log10(zrnorm/bnorm)
 !$omp end master
+!$omp barrier
  enddo
 !$omp end parallel
 end subroutine HACApK_bicgstab_cax_lfmtx_hyp
@@ -494,6 +495,7 @@ end subroutine HACApK_bicgstab_cax_lfmtx_hyp
    time = en_measure_time - st_measure_time
    if(st_ctl%param(1)>0 .and. mpinr==0) print*,in,time,log10(zrnorm/bnorm)
 !$omp end master
+!$omp barrier
  enddo
 !$omp end parallel
 end subroutine HACApK_bicgstab_lfmtx_hyp
