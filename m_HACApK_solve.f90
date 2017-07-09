@@ -436,7 +436,7 @@ end subroutine HACApK_bicgstab_lfmtx
    u(:nd)=u(:nd)+alpha*zkp(:nd)+zeta*zkt(:nd)
    zr(:nd)=zt(:nd)-zeta*zakt(:nd)
 !$omp end workshare
-!$omp single
+!$omp master
    beta=alpha/zeta*HACApK_dotp_d(nd,zshdw,zr)/znomold;
    zrnorm=HACApK_dotp_d(nd,zr,zr); zrnorm=dsqrt(zrnorm)
    nstp=in
@@ -444,7 +444,8 @@ end subroutine HACApK_bicgstab_lfmtx
    en_measure_time=MPI_Wtime()
    time = en_measure_time - st_measure_time
    if(st_ctl%param(1)>0 .and. mpinr==0) print*,in,time,log10(zrnorm/bnorm)
-!$omp end single
+!$omp end master
+!$omp barrier
  enddo
 !$omp end parallel
 end subroutine HACApK_bicgstab_cax_lfmtx_hyp
@@ -513,7 +514,7 @@ end subroutine HACApK_bicgstab_cax_lfmtx_hyp
    u(:nd)=u(:nd)+alpha*zkp(:nd)+zeta*zkt(:nd)
    zr(:nd)=zt(:nd)-zeta*zakt(:nd)
 !$omp end workshare
-!$omp single
+!$omp master
    beta=alpha/zeta*HACApK_dotp_d(nd,zshdw,zr)/znomold;
    zrnorm=HACApK_dotp_d(nd,zr,zr); zrnorm=dsqrt(zrnorm)
    nstp=in
@@ -521,7 +522,8 @@ end subroutine HACApK_bicgstab_cax_lfmtx_hyp
    en_measure_time=MPI_Wtime()
    time = en_measure_time - st_measure_time
    if(st_ctl%param(1)>0 .and. mpinr==0) print*,in,time,log10(zrnorm/bnorm)
-!$omp end single
+!$omp end master
+!$omp barrier
  enddo
 !$omp end parallel
 end subroutine HACApK_bicgstab_lfmtx_hyp

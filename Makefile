@@ -40,11 +40,11 @@ endif
 
 # TSUBAME
 ifeq ($(SYSTEM),TSUBAME)
-OPTFLAGS = -qopenmp -O3 -ip -xSSE4.1
-CC=mpiicc
-F90=mpiifort
+OPTFLAGS = -qopenmp -O3 -ip -xSSE4.1 -mcmodel=large
+CC=mpicc
+F90=mpif90
 CCFLAGS = $(OPTFLAGS)
-F90FLAGS = $(OPTFLAGS) -fpp -align array64byte
+F90FLAGS = $(OPTFLAGS) -fpp -align array16byte
 LDFLAGS = -mkl
 endif
 

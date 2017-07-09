@@ -48,7 +48,7 @@ contains
  icomm=st_ctl%lpmd(1)
  lrtrn=HACApK_generate(st_leafmtxp,st_bemv,st_ctl,gmid,ztol)
  call MPI_Barrier( icomm, ierr )
- if(st_ctl%param(85)==0)then
+! if(st_ctl%param(85)==0)then
     print*, '******** Mat-Vec benchmark only mode ********'
     ! exec mat-vec benchmark
     lrtrn=HACApK_solve(st_leafmtxp,st_bemv,st_ctl,rhs,sol,ztol)
@@ -62,18 +62,18 @@ contains
     call HACApK_measurez_time_ax_lfmtx_c(st_leafmtxp,st_ctl,st_bemv%nd,nstp,lrtrn)
     en_measure_time_ax=MPI_Wtime()
     if(st_ctl%param(1)>0 .and. mpinr==0)  write(6,2000) 'lfmtx; time_AX_c_once  =',(en_measure_time_ax - st_measure_time_ax)/st_ctl%param(99)
- else
+! else
     ! exec solver
     sol(:)=0.0d0
     if(st_ctl%param(85)==-1)then
        ! C BiCGSTAB parallel(hybrid)
-       call HACApK_setupc(st_leafmtxp,st_ctl,st_bemv%nd,nstp,lrtrn)
+!       call HACApK_setupc(st_leafmtxp,st_ctl,st_bemv%nd,nstp,lrtrn)
        lrtrn=HACApK_solve_cax(st_leafmtxp,st_bemv,st_ctl,rhs,sol,ztol)
     else
        ! Fortran BiCGSTAB / GCR(m)
        lrtrn=HACApK_solve(st_leafmtxp,st_bemv,st_ctl,rhs,sol,ztol)
     endif
- endif
+! endif
  call MPI_Barrier( icomm, ierr )
  
 9999 continue

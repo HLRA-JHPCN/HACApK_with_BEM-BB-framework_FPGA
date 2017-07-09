@@ -114,6 +114,8 @@ integer function HACApK_init(nd,st_ctl,st_bemv,icomma)
  type(st_HACApK_lcontrol) :: st_ctl
  integer,optional :: icomma
  character*32 logfile
+ integer required, provided
+ required = MPI_THREAD_FUNNELED
  allocate(st_ctl%param(100))
  st_ctl%param(1:100)=0.0
  st_ctl%param(1) =1;        ! Print : 0:Only Error 1:STD 2:Dubug
@@ -139,9 +141,13 @@ integer function HACApK_init(nd,st_ctl,st_bemv,icomma)
    icomm=icomma; st_ctl%lf_umpi=1
  else
    icomm=MPI_COMM_WORLD; lf_umpi=0
-   call MPI_Init ( ierr )
+!   call MPI_Init ( ierr )
+   call MPI_Init_thread ( required, provided, ierr )
    if( ierr .ne. 0 )  print*, 'HACApK_init; Error: MPI_Init failed !!!' 
- endif
+    if(required.ne.provided)then
+       write(*,*)"Warning: MPI_THREAD_FUNNELED is not supported"
+    endif
+endif
  call MPI_Comm_size ( icomm, nrank, ierr )
  if(ierr.ne.0) then
     print*, 'Error: MPI_Comm_size failed !!!'
