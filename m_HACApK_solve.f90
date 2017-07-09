@@ -90,8 +90,6 @@ contains
  integer*4 :: ISTATUS(MPI_STATUS_SIZE)
  integer*4,pointer :: lpmd(:),lnp(:),lsp(:),lthr(:)
 ! integer*4,dimension(:),allocatable :: ISTATUS
- character*80 filename
- integer,save :: count=0
  1000 format(5(a,i10)/)
  2000 format(5(a,f10.4)/)
 
@@ -106,15 +104,6 @@ contains
  call c_HACApK_adot_body_lfmtx_hyp(zau,st_leafmtxp,zu,nd,st_ctl%lthr)
 !$omp barrier
 !$omp master
-! if(st_ctl%param(1)==2)then
-!    if(count==0)then
-!       write(filename,"('u',I0.2,'c.txt')")nrank
-!       open(nrank+10,FILE=filename,status='replace')
-!       write(nrank+10,*)zau(:nd)
-!       close(nrank+10)
-!       count = 1
-!    endif
-! endif
  if(nrank>1)then
    wws(1:lnp(mpinr))=zau(lsp(mpinr):lsp(mpinr)+lnp(mpinr)-1)
    ncdp=mod(mpinr+1,nrank)
@@ -144,8 +133,6 @@ contains
  integer*4 :: ISTATUS(MPI_STATUS_SIZE)
  integer*4,pointer :: lpmd(:),lnp(:),lsp(:),lthr(:)
 ! integer*4,dimension(:),allocatable :: ISTATUS
- character*80 filename
- integer,save :: count=0
  1000 format(5(a,i10)/)
  2000 format(5(a,f10.4)/)
 
@@ -158,15 +145,6 @@ contains
  call HACApK_adot_body_lfmtx_hyp(zau,st_leafmtxp,st_ctl,zu,nd)
 !$omp barrier
 !$omp master
-! if(st_ctl%param(1)==2)then
-!    if(count==0)then
-!       write(filename,"('u',I0.2,'f.txt')")nrank
-!       open(nrank+10,FILE=filename,status='replace')
-!       write(nrank+10,*)zau(1:nd)
-!       close(nrank+10)
-!       count = 1
-!    endif
-! endif
  if(nrank>1)then
    wws(1:lnp(mpinr))=zau(lsp(mpinr):lsp(mpinr)+lnp(mpinr)-1)
    ncdp=mod(mpinr+1,nrank)
@@ -690,6 +668,7 @@ subroutine HACApK_measurez_time_ax_FPGA_lfmtx(st_leafmtxp,st_ctl,nd,nstp,lrtrn) 
  do il=1,mstep
    u(:)=1.0; b(:)=1.0
    call c_HACApK_adot_body_lfmtx(u,st_leafmtxp,b,wws)
+!   call c_HACApK_adot_body_lfmtx_hyp(u,st_leafmtxp,b,nd,st_ctl%lthr)
  enddo
 !$omp end parallel
     print*,'c_HACApK_adot_body_lfmtx end'

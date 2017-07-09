@@ -178,12 +178,6 @@ program ppohBEM_bem_bb_dense_mpi
     elseif( ppohBEM_linear_solver == "GCRM" ) then
       st_ctl%param(85)=2
       print*, 'solver: GCRM'
-    elseif( ppohBEM_linear_solver == "BICGSTAB_C" ) then
-      st_ctl%param(85)=-1
-      print*, 'solver: BiCGSTAB_C'
-    elseif( ppohBEM_linear_solver == "MATVEC" ) then
-      st_ctl%param(85)=0
-      print*, 'solver: Mat-Vec only'
     else
       print*, 'Error: Invalid ppohBEM_linear_solver (',ppohBEM_linear_solver,')'
       goto 1000
@@ -413,7 +407,7 @@ contains
     if ( irank .eq. 0 ) then
       open( iunit, file=filename, action='read', pad='yes', iostat=ierr )
       if( ierr .ne. 0 ) then
-        print*, filename,'does not exists'; stop
+        print*, filename, 'does not exists'; stop
       endif
 
     !!!!  Read number of nodes from input data file : ppohBEM_nond  !!!!
