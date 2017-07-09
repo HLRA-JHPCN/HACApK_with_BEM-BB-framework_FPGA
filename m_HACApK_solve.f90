@@ -100,7 +100,8 @@ contains
  zau(:nd)=0.0d0
 !$omp barrier
 !!! call HACApK_adot_body_lfmtx_hyp(zau,st_leafmtxp,st_ctl,zu,nd)
-   call c_HACApK_adot_body_lfmtx(zau,st_leafmtxp,zu,wws)
+!   call c_HACApK_adot_body_lfmtx(zau,st_leafmtxp,zu,wws)
+   call c_HACApK_adot_body_lfmtx_hyp(zau,st_leafmtxp,zu,nd,st_ctl%lthr)
 !$omp barrier
 !$omp master
  if(nrank>1)then
@@ -357,18 +358,19 @@ end subroutine HACApK_bicgstab_lfmtx
  integer*4 :: isct(2),irct(2)
  1000 format(5(a,i10)/)
  2000 format(5(a,f10.4)/)
+
  lpmd => st_ctl%lpmd(:); lnp(0:) => st_ctl%lnp; lsp(0:) => st_ctl%lsp;lthr(0:) => st_ctl%lthr
  mpinr=lpmd(3); mpilog=lpmd(4); nrank=lpmd(2); icomm=lpmd(1)
    call MPI_Barrier( icomm, ierr )
    st_measure_time=MPI_Wtime()
- if(st_ctl%param(1)>0 .and. mpinr==0) print*,'HACApK_bicgstab_lfmtx_hyp start'
+ if(st_ctl%param(1)>0 .and. mpinr==0) print*,'HACApK_bicgstab_cax_lfmtx_hyp start'
  mstep=param(83)
  eps=param(91)
  allocate(wws(maxval(lnp(0:nrank-1))),wwr(maxval(lnp(0:nrank-1))))
  allocate(zr(nd),zshdw(nd),zp(nd),zt(nd),zkp(nd),zakp(nd),zkt(nd),zakt(nd))
  alpha = 0.0;  beta = 0.0;  zeta = 0.0;
  zz=HACApK_dotp_d(nd, b, b); bnorm=dsqrt(zz);
-!$omp parallel
+!$omp parallel private(in)
 !$omp workshare
  zp(1:nd)=0.0d0; zakp(1:nd)=0.0d0
  zr(:nd)=b(:nd)
@@ -398,7 +400,7 @@ end subroutine HACApK_bicgstab_lfmtx
    zt(:nd)=zr(:nd)-alpha*zakp(:nd)
    zkt(:nd)=zt(:nd)
 !$omp end workshare
-   call HACApK_adot_lfmtx_hyp(zakt,st_leafmtxp,st_ctl,zkt,wws,wwr,isct,irct,nd)
+   call HACApK_adot_cax_lfmtx_hyp(zakt,st_leafmtxp,st_ctl,zkt,wws,wwr,isct,irct,nd)
 !$omp barrier
 !$omp single
    znom=HACApK_dotp_d(nd,zakt,zt); zden=HACApK_dotp_d(nd,zakt,zakt);
@@ -637,7 +639,8 @@ subroutine HACApK_measurez_time_ax_FPGA_lfmtx(st_leafmtxp,st_ctl,nd,nstp,lrtrn) 
 !$omp parallel private(il)
  do il=1,mstep
    u(:)=1.0; b(:)=1.0
-   call c_HACApK_adot_body_lfmtx(u,st_leafmtxp,b,wws)
+!   call c_HACApK_adot_body_lfmtx(u,st_leafmtxp,b,wws)
+   call c_HACApK_adot_body_lfmtx_hyp(u,st_leafmtxp,b,nd,st_ctl%lthr)
  enddo
 !$omp end parallel
     print*,'c_HACApK_adot_body_lfmtx end'
