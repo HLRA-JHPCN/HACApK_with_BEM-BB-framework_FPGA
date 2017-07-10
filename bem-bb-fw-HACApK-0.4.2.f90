@@ -84,7 +84,7 @@ program ppohBEM_bem_bb_dense_mpi
   integer  act_comm
   
 !For HACApK
-  character*32 value
+  character*256 value
   character*32 logfile
   real*8 ztol
 
@@ -130,6 +130,7 @@ program ppohBEM_bem_bb_dense_mpi
       number=1
       call get_command_argument(number,value,nlength,nstatus)
       filename =trim(value)
+      write(*,*)"filename:",filename
     endif
   endif
 
@@ -406,7 +407,7 @@ contains
     if ( irank .eq. 0 ) then
       open( iunit, file=filename, action='read', pad='yes', iostat=ierr )
       if( ierr .ne. 0 ) then
-        print*, 'input.txt does not exists'; stop
+        print*, filename,' does not exists'; stop
       endif
 
     !!!!  Read number of nodes from input data file : ppohBEM_nond  !!!!

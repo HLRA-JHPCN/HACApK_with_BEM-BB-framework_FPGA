@@ -53,7 +53,7 @@ module m_HACApK_base
     integer*4 kt
     integer*4 nstrtl,ndl;
     integer*4 nstrtt,ndt;
-    integer*4 a1size !!!
+    integer*8 a1size !!!
     real*8,pointer :: a1(:,:)=>null(),a2(:,:)=>null()
   end type st_HACApK_leafmtx
 
@@ -816,7 +816,10 @@ endfunction
      if(ierr.ne.0) then
 !$omp critical
         write(*,*) 'sub HACApK_fill_leafmtx_p; zab,zaa Memory allocation failed !'
+        write(*,*)"thread_id=",ith
         write(*,1000) 'ip=ip',ip,' ierr=',ierr
+        write(*,*)"zaa:",ndl,"*",kparam
+        write(*,*)"zab:",ndt,"*",kparam
 !$omp end critical
         stop 10
      endif

@@ -41,12 +41,12 @@ endif
 
 # TSUBAME
 ifeq ($(SYSTEM),TSUBAME)
-OPTFLAGS = -qopenmp -O3 -ip -xSSE4.1 -mcmodel=large
+OPTFLAGS = -qopenmp -O3 -ip -xSSE4.1 -mcmodel=large -mt_mpi
 CC=mpiicc
 F90=mpiifort
 CCFLAGS = $(OPTFLAGS)
 F90FLAGS = $(OPTFLAGS) -fpp
-LDFLAGS = -mkl -mcmodel=large -qopenmp
+LDFLAGS = -mkl -mcmodel=large -qopenmp -mt_mpi
 endif
 
 LINK=$(F90)

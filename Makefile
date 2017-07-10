@@ -40,18 +40,18 @@ endif
 
 # TSUBAME
 ifeq ($(SYSTEM),TSUBAME)
-OPTFLAGS = -qopenmp -O3 -ip
-CC=mpiicc
-F90=mpiifort
+OPTFLAGS = -qopenmp -O3 -ip -xSSE4.1 -mcmodel=large
+CC=mpicc
+F90=mpif90
 CCFLAGS = $(OPTFLAGS)
-F90FLAGS = $(OPTFLAGS) -fpp
-LDFLAGS = -mkl
+F90FLAGS = $(OPTFLAGS) -fpp -align array16byte
+LDFLAGS = -mkl $(OPPTFLAGS)
 endif
 
 LINK=$(F90)
 
 OBJS= HACApK_FPGA.o HACApK_lib.o m_ppohBEM_user_func.o m_ppohBEM_matrix_element_ij.o m_HACApK_calc_entry_ij.o \
-	 m_HACApK_base.o m_HACApK_solve.o m_HACApK_use.o m_ppohBEM_bembb2hacapk.o bem-bb-fw-HACApK-0.4.2.o \
+	 m_HACApK_base.o m_HACApK_solve.o m_HACApK_use.o m_ppohBEM_bembb2hacapk.o bem-bb-fw-HACApK-0.4.2.o
 
 
 TARGET=bem-bb-SCM.out
