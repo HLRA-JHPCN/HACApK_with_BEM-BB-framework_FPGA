@@ -171,12 +171,15 @@ contains
  real*8 :: zau(nd),zu(nd)
  real*8,dimension(:),allocatable :: zbu
  integer*4,pointer :: lpmd(:),lnp(:),lsp(:),lthr(:)
+ real*8,pointer :: a1(:,:)=>null(), a2(:,:)=>null()
  1000 format(5(a,i10)/)
  2000 format(5(a,f10.4)/)
 
  lpmd => st_ctl%lpmd(:); lnp(0:) => st_ctl%lnp; lsp(0:) => st_ctl%lsp;lthr(0:) => st_ctl%lthr
  nlf=st_leafmtxp%nlf
  do ip=1,nlf
+    a1 => st_leafmtxp%st_lf(ip)%a1
+    a2 => st_leafmtxp%st_lf(ip)%a2
    ndl   =st_leafmtxp%st_lf(ip)%ndl   ; ndt   =st_leafmtxp%st_lf(ip)%ndt   ; ns=ndl*ndt
    nstrtl=st_leafmtxp%st_lf(ip)%nstrtl; nstrtt=st_leafmtxp%st_lf(ip)%nstrtt
    if(st_leafmtxp%st_lf(ip)%ltmtx==1)then
@@ -194,11 +197,12 @@ contains
      enddo
      deallocate(zbu)
    elseif(st_leafmtxp%st_lf(ip)%ltmtx==2)then
-     do il=1,ndl; ill=il+nstrtl-1
-       do it=1,ndt; itt=it+nstrtt-1
-         zau(ill)=zau(ill)+st_leafmtxp%st_lf(ip)%a1(it,il)*zu(itt)
-       enddo
-     enddo
+      call dgemv('t', ndt, ndl, 1.0d0, a1, ndt, zu(nstrtt-1:nd), 1, 1.0d0, zau(nstrtl-1:nd), 1)
+!     do il=1,ndl; ill=il+nstrtl-1
+!       do it=1,ndt; itt=it+nstrtt-1
+!         zau(ill)=zau(ill)+st_leafmtxp%st_lf(ip)%a1(it,il)*zu(itt)
+!       enddo
+!     enddo
    endif
  enddo
  end subroutine HACApK_adot_body_lfmtx
@@ -211,6 +215,7 @@ contains
  real*8,dimension(:),allocatable :: zbut
  real*8,dimension(:),allocatable :: zaut
  integer*4,pointer :: lpmd(:),lnp(:),lsp(:),ltmp(:)
+ real*8,pointer :: a1(:,:)=>null(), a2(:,:)=>null()
  1000 format(5(a,i10)/)
  2000 format(5(a,f10.4)/)
 
@@ -224,6 +229,8 @@ contains
  allocate(zbut(ktmax)) 
  ls=nd; le=1
  do ip=nths,nthe
+    a1 => st_leafmtxp%st_lf(ip)%a1
+    a2 => st_leafmtxp%st_lf(ip)%a2
    ndl   =st_leafmtxp%st_lf(ip)%ndl   ; ndt   =st_leafmtxp%st_lf(ip)%ndt   ; ns=ndl*ndt
    nstrtl=st_leafmtxp%st_lf(ip)%nstrtl; nstrtt=st_leafmtxp%st_lf(ip)%nstrtt
    if(nstrtl<ls) ls=nstrtl; if(nstrtl+ndl-1>le) le=nstrtl+ndl-1
@@ -241,11 +248,12 @@ contains
        enddo
      enddo
    elseif(st_leafmtxp%st_lf(ip)%ltmtx==2)then
-     do il=1,ndl; ill=il+nstrtl-1
-       do it=1,ndt; itt=it+nstrtt-1
-         zaut(ill)=zaut(ill)+st_leafmtxp%st_lf(ip)%a1(it,il)*zu(itt)
-       enddo
-     enddo
+      call dgemv('t', ndt, ndl, 1.0d0, a1, ndt, zu(nstrtt-1:nd), 1, 1.0d0, zaut(nstrtl-1:nd), 1)
+!     do il=1,ndl; ill=il+nstrtl-1
+!       do it=1,ndt; itt=it+nstrtt-1
+!         zaut(ill)=zaut(ill)+st_leafmtxp%st_lf(ip)%a1(it,il)*zu(itt)
+!       enddo
+!     enddo
    endif
  enddo
  deallocate(zbut)
