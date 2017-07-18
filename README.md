@@ -1,1 +1,3 @@
-# HACApK_BEM-BB_FPGA_1.1.1
+this branch makes matrix calculation logs
+- approximate matrix: aprox_*.log
+- small dense matrix: small_*.log

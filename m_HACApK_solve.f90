@@ -211,6 +211,9 @@ contains
  real*8,dimension(:),allocatable :: zbut
  real*8,dimension(:),allocatable :: zaut
  integer*4,pointer :: lpmd(:),lnp(:),lsp(:),ltmp(:)
+ integer, save :: count = 0
+ integer :: fa, fs
+ character*50 :: f
  1000 format(5(a,i10)/)
  2000 format(5(a,f10.4)/)
 
@@ -219,6 +222,14 @@ contains
  nlf=st_leafmtxp%nlf; ktmax=st_leafmtxp%ktmax
  ith = omp_get_thread_num()
  ith1 = ith+1
+ if(count.eq.0)then
+    ia = 100 + ith
+    is = 200 + ith
+    write(f,'(A,I4.4,A)')"aprox_",ith,".log"
+    open(ia,file=f,status="replace")
+    write(f,'(A,I4.4,A)')"small_",ith,".log"
+    open(is,file=f,status="replace")
+ endif
  nths=ltmp(ith); nthe=ltmp(ith1)-1
  allocate(zaut(nd)); zaut(:)=0.0d0
  allocate(zbut(ktmax)) 
@@ -230,6 +241,9 @@ contains
    if(st_leafmtxp%st_lf(ip)%ltmtx==1)then
      kt=st_leafmtxp%st_lf(ip)%kt
      zbut(1:kt)=0.0d0
+     if(count.eq.0)then
+        write(ia,*)ndt,ndl
+     endif
      do il=1,kt
        do it=1,ndt; itt=it+nstrtt-1
          zbut(il)=zbut(il)+st_leafmtxp%st_lf(ip)%a1(it,il)*zu(itt)
@@ -241,6 +255,9 @@ contains
        enddo
      enddo
    elseif(st_leafmtxp%st_lf(ip)%ltmtx==2)then
+     if(count.eq.0)then
+        write(is,*)ndt,ndl
+     endif
      do il=1,ndl; ill=il+nstrtl-1
        do it=1,ndt; itt=it+nstrtt-1
          zaut(ill)=zaut(ill)+st_leafmtxp%st_lf(ip)%a1(it,il)*zu(itt)
@@ -249,7 +266,11 @@ contains
    endif
  enddo
  deallocate(zbut)
- 
+ if(count.eq.0)then
+    close(ia)
+    close(is)
+ endif
+ count = 1
  do il=ls,le
 !$omp atomic
    zau(il)=zau(il)+zaut(il)
