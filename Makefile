@@ -45,7 +45,7 @@ CC=mpicc
 F90=mpif90
 CCFLAGS = $(OPTFLAGS)
 F90FLAGS = $(OPTFLAGS) -fpp -align array16byte
-LDFLAGS = -mkl $(OPPTFLAGS)
+LDFLAGS = -mkl=sequential $(OPTFLAGS)
 endif
 
 LINK=$(F90)

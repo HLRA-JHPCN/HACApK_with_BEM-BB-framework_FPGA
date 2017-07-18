@@ -59,8 +59,12 @@ contains
  en_measure_time_ax=MPI_Wtime()
  if(st_ctl%param(1)>0 .and. mpinr==0)  write(6,2000) 'lfmtx; time_FPGA_AX_once  =',(en_measure_time_ax - st_measure_time_ax)/st_ctl%param(99)
  call MPI_Barrier( icomm, ierr )
+! write(*,*)"HACApK_solve_cax begin"
+! sol(:)=0.0d0
+! lrtrn=HACApK_solve_cax(st_leafmtxp,st_bemv,st_ctl,rhs,sol,ztol)
+! call MPI_Barrier( icomm, ierr )
  sol(:)=0.0d0
- lrtrn=HACApK_solve_cax(st_leafmtxp,st_bemv,st_ctl,rhs,sol,ztol)
+ lrtrn=HACApK_solve_mkl(st_leafmtxp,st_bemv,st_ctl,rhs,sol,ztol)
  call MPI_Barrier( icomm, ierr )
  
 9999 continue
@@ -234,7 +238,7 @@ contains
  endif
 9999 continue
  HACApK_solve=lrtrn
- endfunction
+endfunction HACApK_solve
 
 !*** HACApK_solve_cax
  integer function HACApK_solve_cax(st_leafmtxp,st_bemv,st_ctl,rhs,sol,ztol)
@@ -252,7 +256,7 @@ contains
  lpmd => st_ctl%lpmd(:); lnp(0:) => st_ctl%lnp; lsp(0:) => st_ctl%lsp;lthr(0:) => st_ctl%lthr;lod => st_ctl%lod(:); param=>st_ctl%param(:)
  mpinr=lpmd(3); mpilog=lpmd(4); nrank=lpmd(2); icomm=lpmd(1); nthr=lpmd(20)
  param(91)=ztol
- if(st_ctl%param(1)>0 .and. mpinr==0) print*,'HACApK_solve_cx start'
+ if(st_ctl%param(1)>0 .and. mpinr==0) print*,'HACApK_solve_cax start'
  nofc=st_bemv%nd;nffc=1;ndim=3
  nd=nofc*nffc
  if(st_ctl%param(1)>1) write(*,*) 'irank=',mpinr,' lthr=',lthr(0:nthr-1)
@@ -283,7 +287,7 @@ contains
    call MPI_Barrier( icomm, ierr )
    en_measure_time_bicgstab=MPI_Wtime()
    time_bicgstab = en_measure_time_bicgstab - st_measure_time_bicgstab
-   if(st_ctl%param(1)>0 .and. mpinr==0)  write(6,2000)              'time_HACApK_solve  =',time_bicgstab
+   if(st_ctl%param(1)>0 .and. mpinr==0)  write(6,2000)              'time_HACApK_solve_cax  =',time_bicgstab
    if(st_ctl%param(1)>0 .and. mpinr==0 .and. nstp>1)  write(6,2000) '       time_1step  =',time_bicgstab/nstp
    allocate(www(nd))
    sol(:nd)=0.0d0; www(lod(:nd))=u(:nd); sol(:nd)=www(:nd)
@@ -296,6 +300,70 @@ contains
  endif
 9999 continue
  HACApK_solve_cax=lrtrn
- endfunction
+endfunction HACApK_solve_cax
+
+!*** HACApK_solve_mkl
+ integer function HACApK_solve_mkl(st_leafmtxp,st_bemv,st_ctl,rhs,sol,ztol)
+ include 'mpif.h'
+ type(st_HACApK_leafmtxp) :: st_leafmtxp
+ type(st_HACApK_lcontrol) :: st_ctl
+ type(st_HACApK_calc_entry) :: st_bemv
+ real*8 :: rhs(st_bemv%nd),sol(st_bemv%nd),ztol
+ real*8,pointer :: param(:)
+ real*8,dimension(:),allocatable :: u,b,www,ao
+ integer*4,pointer :: lpmd(:),lnp(:),lsp(:),lthr(:),lod(:)
+ 1000 format(5(a,i10)/)
+ 2000 format(5(a,1pe15.8)/)
+
+ lpmd => st_ctl%lpmd(:); lnp(0:) => st_ctl%lnp; lsp(0:) => st_ctl%lsp;lthr(0:) => st_ctl%lthr;lod => st_ctl%lod(:); param=>st_ctl%param(:)
+ mpinr=lpmd(3); mpilog=lpmd(4); nrank=lpmd(2); icomm=lpmd(1); nthr=lpmd(20)
+ param(91)=ztol
+ if(st_ctl%param(1)>0 .and. mpinr==0) print*,'HACApK_solve_mkl start'
+ nofc=st_bemv%nd;nffc=1;ndim=3
+ nd=nofc*nffc
+ if(st_ctl%param(1)>1) write(*,*) 'irank=',mpinr,' lthr=',lthr(0:nthr-1)
+ allocate(u(nd),b(nd)); u(:nd)=sol(lod(:nd)); b(:nd)=rhs(lod(:nd))
+ if(param(61)==3)then
+!   do il=ndnr_s,ndnr_e
+   do il=1,nd
+     u(il)=u(il)/st_bemv%ao(lod(il))
+     b(il)=b(il)*st_bemv%ao(lod(il))
+   enddo
+ endif
+ if(param(83)>0) then
+   allocate(ao(nd))
+   do il=1,nd
+     zzz=HACApK_entry_ij(il,il,st_bemv)
+     ao(il)=1.0d0/zzz
+   enddo
+
+   call MPI_Barrier( icomm, ierr )
+   st_measure_time_bicgstab=MPI_Wtime()
+   if(param(85)==1)then
+!     call HACApK_bicgstab_lfmtx(st_leafmtxp,st_ctl,u,b,param,nd,nstp,lrtrn)
+!     call HACApK_bicgstab_lfmtx_hyp(st_leafmtxp,st_ctl,u,b,param,nd,nstp,lrtrn)
+     call HACApK_bicgstab_lfmtx_hyp_mkl(st_leafmtxp,st_ctl,u,b,param,nd,nstp,lrtrn)
+   elseif(param(85)==2)then
+     call HACApK_gcrm_lfmtx(st_leafmtxp,st_ctl,st_bemv,u,b,param,nd,nstp,lrtrn)
+   else
+   endif
+   call MPI_Barrier( icomm, ierr )
+   en_measure_time_bicgstab=MPI_Wtime()
+   time_bicgstab = en_measure_time_bicgstab - st_measure_time_bicgstab
+   if(st_ctl%param(1)>0 .and. mpinr==0)  write(6,2000)              'time_HACApK_solve_mkl  =',time_bicgstab
+   if(st_ctl%param(1)>0 .and. mpinr==0 .and. nstp>1)  write(6,2000) '       time_1step  =',time_bicgstab/nstp
+   allocate(www(nd))
+   sol(:nd)=0.0d0; www(lod(:nd))=u(:nd); sol(:nd)=www(:nd)
+   deallocate(www)
+   if(param(61)==3)then
+     do il=1,nd
+       sol(il)=sol(il)*st_bemv%ao(il)
+     enddo
+   endif
+ endif
+9999 continue
+ HACApK_solve_mkl=lrtrn
+endfunction HACApK_solve_mkl
+
 
 endmodule m_HACApK_use

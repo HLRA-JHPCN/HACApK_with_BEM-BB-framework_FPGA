@@ -31,6 +31,7 @@
 !C**************************************************************************
 module m_HACApK_base
  use m_HACApK_calc_entry_ij
+ use ISO_C_BINDING
  implicit real*8(a-h,o-z)
  implicit integer*4(i-n)
  integer omp_get_thread_num, omp_get_num_threads
@@ -53,7 +54,7 @@ module m_HACApK_base
     integer*4 kt
     integer*4 nstrtl,ndl;
     integer*4 nstrtt,ndt;
-    integer*8 a1size !!!
+    integer(c_size_t) a1size !!!
     real*8,pointer :: a1(:,:)=>null(),a2(:,:)=>null()
   end type st_HACApK_leafmtx
 
