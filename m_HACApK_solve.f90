@@ -233,8 +233,11 @@ subroutine mydgemv2(trans, ndt, ndl, alpha, a1, lda, zu, incx, beta, zaut, incy,
   implicit none
   character*1 :: trans
   integer :: ndt, ndl, incx, incy, lda, t, l, itt, ill
-  real*8 :: alpha, beta, a1(:,:), zu(*), zaut(*)
   integer :: il, it
+!  real*8 :: alpha, beta, a1(:,:), zu(*), zaut(*)
+  real*8 :: alpha, beta, zu(*), zaut(*)
+  real*8, pointer :: a1(:,:)
+!  real*8, pointer, dimension(:,:) :: a1
   do il=1,ndl; ill=il+l-1
      do it=1,ndt; itt=it+t-1
         zaut(ill)=zaut(ill)+a1(it,il)*zu(itt)
@@ -245,33 +248,21 @@ end subroutine mydgemv2
 !***HACApK_adot_body_lfmtx_hyp
 subroutine HACApK_adot_body_lfmtx_hyp(zau,st_leafmtxp,st_ctl,zu,nd)
   implicit none
-!  interface
-!     subroutine mydgemv(trans, m, n, alpha, a, lda, x, incx, beta, y, incy, t, l)
-!       implicit none
-!       character*1 :: trans
-!       integer :: m, n, incx, incy, lda, t, l
-!       real*8 :: alpha, beta, a(:,:), x(*), y(*)
-!     end subroutine mydgemv
-!     subroutine mydgemv2(trans, ndt, ndl, alpha, a1, lda, zu, incx, beta, zaut, incy, t, l)
-!       implicit none
-!       character*1 :: trans
-!       integer :: ndt, ndl, incx, incy, lda, t, l
-!       real*8 :: alpha, beta, a1(:,:), zu(*), zaut(*)
-!     end subroutine mydgemv2
-!  end interface
   type(st_HACApK_leafmtxp) :: st_leafmtxp
   type(st_HACApK_lcontrol) :: st_ctl
  real*8 :: zau(*),zu(*)
  real*8,dimension(:),allocatable :: zbut
  real*8,dimension(:),allocatable :: zaut
  integer*4,pointer :: lpmd(:),lnp(:),lsp(:),ltmp(:)
- real*8,pointer :: a1(:,:)=>null(), a2(:,:)=>null()
+ real*8,pointer :: a1(:,:), a2(:,:)
  integer :: ith,ith1,nths,nthe,ls,le,ip,il,it
  integer :: mpinr,mpilog,nrank,icomm,nlf,ktmax,ndl,ndt,nstrtl,nstrtt,kt,itt,ill,nd,ns
  real*8 :: rone
  integer :: ione
  1000 format(5(a,i10)/)
  2000 format(5(a,f10.4)/)
+
+ a1 => null(); a2 => null()
 
  rone = 1.0d0
  ione = 1
@@ -307,16 +298,15 @@ subroutine HACApK_adot_body_lfmtx_hyp(zau,st_leafmtxp,st_ctl,zu,nd)
 !       enddo
 !     enddo
    elseif(st_leafmtxp%st_lf(ip)%ltmtx==2)then
-!      write(*,*)ith,ip
-!      call dgemv('t', ndt, ndl, rone, st_leafmtxp%st_lf(ip)%a1, ndt, zu(nstrtt), ione, rone, zaut(nstrtl), ione)
+      call dgemv('t', ndt, ndl, 1.0d0, a1, ndt, zu(nstrtt), 1, 1.0d0, zaut(nstrtl), 1)
 !      call dgemv('t', ndt, ndl, rone, a1, ndt, zu(nstrtt), ione, rone, zaut(nstrtl), ione)
 !      call mydgemv('t', ndt, ndl, 1.0d0, a1, ndt, zu(nstrtt), 1, 1.0d0, zaut(nstrtl), 1)
 !      call mydgemv('t', ndt, ndl, 1.0d0, a1, ndt, zu, 1, 1.0d0, zaut, 1, nstrtt, nstrtl)
 !     OK
 !      call mydgemv2('t', ndt, ndl, 1.0d0, st_leafmtxp%st_lf(ip)%a1, ndt, zu, 1, 1.0d0, zaut, 1, nstrtt, nstrtl)
 !     NG
-      a1 => st_leafmtxp%st_lf(ip)%a1
-      call mydgemv2('t', ndt, ndl, 1.0d0, a1, ndt, zu, 1, 1.0d0, zaut, 1, nstrtt, nstrtl)
+!      a1 => st_leafmtxp%st_lf(ip)%a1
+!      call mydgemv2('t', ndt, ndl, 1.0d0, a1, ndt, zu, 1, 1.0d0, zaut, 1, nstrtt, nstrtl)
 !     do il=1,ndl; ill=il+nstrtl-1
 !       do it=1,ndt; itt=it+nstrtt-1
 !         zaut(ill)=zaut(ill)+st_leafmtxp%st_lf(ip)%a1(it,il)*zu(itt)
