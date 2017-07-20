@@ -166,12 +166,14 @@ contains
 
 !***HACApK_adot_body_lfmtx
  RECURSIVE subroutine HACApK_adot_body_lfmtx(zau,st_leafmtxp,st_ctl,zu,nd)
+   implicit none
  type(st_HACApK_leafmtxp) :: st_leafmtxp
  type(st_HACApK_lcontrol) :: st_ctl
  real*8 :: zau(nd),zu(nd)
  real*8,dimension(:),allocatable :: zbu
  integer*4,pointer :: lpmd(:),lnp(:),lsp(:),lthr(:)
  real*8,pointer :: a1(:,:)=>null(), a2(:,:)=>null()
+integer :: nlf, ip, ndl, ndt, ns, nstrtl, nstrtt, kt, nd
  1000 format(5(a,i10)/)
  2000 format(5(a,f10.4)/)
 
@@ -185,16 +187,18 @@ contains
    if(st_leafmtxp%st_lf(ip)%ltmtx==1)then
      kt=st_leafmtxp%st_lf(ip)%kt
      allocate(zbu(kt)); zbu(:)=0.0d0
-     do il=1,kt
-       do it=1,ndt; itt=it+nstrtt-1
-         zbu(il)=zbu(il)+st_leafmtxp%st_lf(ip)%a1(it,il)*zu(itt)
-       enddo
-     enddo
-     do il=1,kt
-       do it=1,ndl; ill=it+nstrtl-1
-         zau(ill)=zau(ill)+st_leafmtxp%st_lf(ip)%a2(it,il)*zbu(il)
-       enddo
-     enddo
+     call dgemv('t', ndt, kt, 1.0d0, a1, ndt, zu(nstrtt), 1, 1.0d0, zbu, 1)
+!     do il=1,kt
+!       do it=1,ndt; itt=it+nstrtt-1
+!         zbu(il)=zbu(il)+st_leafmtxp%st_lf(ip)%a1(it,il)*zu(itt)
+!       enddo
+!     enddo
+     call dgemv('n', ndl, kt, 1.0d0, a2, ndl, zbu, 1, 1.0d0, zau(nstrtl), 1)
+!     do il=1,kt
+!       do it=1,ndl; ill=it+nstrtl-1
+!         zau(ill)=zau(ill)+st_leafmtxp%st_lf(ip)%a2(it,il)*zbu(il)
+!       enddo
+!     enddo
      deallocate(zbu)
    elseif(st_leafmtxp%st_lf(ip)%ltmtx==2)then
       call dgemv('t', ndt, ndl, 1.0d0, a1, ndt, zu(nstrtt), 1, 1.0d0, zau(nstrtl), 1)
@@ -290,16 +294,18 @@ subroutine HACApK_adot_body_lfmtx_hyp(zau,st_leafmtxp,st_ctl,zu,nd)
    if(st_leafmtxp%st_lf(ip)%ltmtx==1)then
      kt=st_leafmtxp%st_lf(ip)%kt
      zbut(1:kt)=0.0d0
-     do il=1,kt
-       do it=1,ndt; itt=it+nstrtt-1
-         zbut(il)=zbut(il)+st_leafmtxp%st_lf(ip)%a1(it,il)*zu(itt)
-       enddo
-     enddo
-     do il=1,kt
-       do it=1,ndl; ill=it+nstrtl-1
-         zaut(ill)=zaut(ill)+st_leafmtxp%st_lf(ip)%a2(it,il)*zbut(il)
-       enddo
-     enddo
+     call dgemv('t', ndt, kt, 1.0d0, a1, ndt, zu(nstrtt), 1, 1.0d0, zbut, 1)
+!     do il=1,kt
+!       do it=1,ndt; itt=it+nstrtt-1
+!         zbut(il)=zbut(il)+st_leafmtxp%st_lf(ip)%a1(it,il)*zu(itt)
+!       enddo
+!     enddo
+     call dgemv('n', ndl, kt, 1.0d0, a2, ndl, zbut, 1, 1.0d0, zaut(nstrtl), 1)
+!     do il=1,kt
+!       do it=1,ndl; ill=it+nstrtl-1
+!         zaut(ill)=zaut(ill)+st_leafmtxp%st_lf(ip)%a2(it,il)*zbut(il)
+!       enddo
+!     enddo
    elseif(st_leafmtxp%st_lf(ip)%ltmtx==2)then
 !      write(*,*)ith,ip
 !      call dgemv('t', ndt, ndl, rone, st_leafmtxp%st_lf(ip)%a1, ndt, zu(nstrtt), ione, rone, zaut(nstrtl), ione)
