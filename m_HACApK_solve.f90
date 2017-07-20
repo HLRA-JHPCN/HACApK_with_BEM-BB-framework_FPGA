@@ -197,7 +197,7 @@ contains
      enddo
      deallocate(zbu)
    elseif(st_leafmtxp%st_lf(ip)%ltmtx==2)then
-      call dgemv('t', ndt, ndl, 1.0d0, a1, ndt, zu(nstrtt-1:nd), 1, 1.0d0, zau(nstrtl-1:nd), 1)
+      call dgemv('t', ndt, ndl, 1.0d0, a1, ndt, zu(nstrtt), 1, 1.0d0, zau(nstrtl), 1)
 !     do il=1,ndl; ill=il+nstrtl-1
 !       do it=1,ndt; itt=it+nstrtt-1
 !         zau(ill)=zau(ill)+st_leafmtxp%st_lf(ip)%a1(it,il)*zu(itt)
@@ -207,18 +207,70 @@ contains
  enddo
  end subroutine HACApK_adot_body_lfmtx
 
+subroutine mydgemv(trans, m, n, alpha, a, lda, x, incx, beta, y, incy, t, l)
+  implicit none
+  character*1 :: trans
+  integer :: m, n, incx, incy, lda, t, l, itt, ill
+  real*8 :: alpha, beta, a(:,:), x(*), y(*)
+  integer :: i, j
+  do i=1,n; ill=i+l-1
+     do j=1,m; itt=j+t-1
+        y(i)=y(i)+a(j,i)*x(j)
+     enddo
+  enddo
+!  do i=1,n
+!     do j=1,m
+!        y(i)=y(i)+a(j,i)*x(j)
+!     enddo
+!  enddo
+end subroutine mydgemv
+
+subroutine mydgemv2(trans, ndt, ndl, alpha, a1, lda, zu, incx, beta, zaut, incy, t, l)
+  implicit none
+  character*1 :: trans
+  integer :: ndt, ndl, incx, incy, lda, t, l, itt, ill
+  real*8 :: alpha, beta, a1(:,:), zu(*), zaut(*)
+  integer :: il, it
+  do il=1,ndl; ill=il+l-1
+     do it=1,ndt; itt=it+t-1
+        zaut(ill)=zaut(ill)+a1(it,il)*zu(itt)
+     enddo
+  enddo
+end subroutine mydgemv2
+
 !***HACApK_adot_body_lfmtx_hyp
- subroutine HACApK_adot_body_lfmtx_hyp(zau,st_leafmtxp,st_ctl,zu,nd)
- type(st_HACApK_leafmtxp) :: st_leafmtxp
- type(st_HACApK_lcontrol) :: st_ctl
+subroutine HACApK_adot_body_lfmtx_hyp(zau,st_leafmtxp,st_ctl,zu,nd)
+  implicit none
+!  interface
+!     subroutine mydgemv(trans, m, n, alpha, a, lda, x, incx, beta, y, incy, t, l)
+!       implicit none
+!       character*1 :: trans
+!       integer :: m, n, incx, incy, lda, t, l
+!       real*8 :: alpha, beta, a(:,:), x(*), y(*)
+!     end subroutine mydgemv
+!     subroutine mydgemv2(trans, ndt, ndl, alpha, a1, lda, zu, incx, beta, zaut, incy, t, l)
+!       implicit none
+!       character*1 :: trans
+!       integer :: ndt, ndl, incx, incy, lda, t, l
+!       real*8 :: alpha, beta, a1(:,:), zu(*), zaut(*)
+!     end subroutine mydgemv2
+!  end interface
+  type(st_HACApK_leafmtxp) :: st_leafmtxp
+  type(st_HACApK_lcontrol) :: st_ctl
  real*8 :: zau(*),zu(*)
  real*8,dimension(:),allocatable :: zbut
  real*8,dimension(:),allocatable :: zaut
  integer*4,pointer :: lpmd(:),lnp(:),lsp(:),ltmp(:)
  real*8,pointer :: a1(:,:)=>null(), a2(:,:)=>null()
+ integer :: ith,ith1,nths,nthe,ls,le,ip,il,it
+ integer :: mpinr,mpilog,nrank,icomm,nlf,ktmax,ndl,ndt,nstrtl,nstrtt,kt,itt,ill,nd,ns
+ real*8 :: rone
+ integer :: ione
  1000 format(5(a,i10)/)
  2000 format(5(a,f10.4)/)
 
+ rone = 1.0d0
+ ione = 1
  lpmd => st_ctl%lpmd(:); lnp(0:) => st_ctl%lnp; lsp(0:) => st_ctl%lsp;ltmp(0:) => st_ctl%lthr
  mpinr=lpmd(3); mpilog=lpmd(4); nrank=lpmd(2); icomm=lpmd(1)
  nlf=st_leafmtxp%nlf; ktmax=st_leafmtxp%ktmax
@@ -226,8 +278,9 @@ contains
  ith1 = ith+1
  nths=ltmp(ith); nthe=ltmp(ith1)-1
  allocate(zaut(nd)); zaut(:)=0.0d0
- allocate(zbut(ktmax)) 
+ allocate(zbut(ktmax)); zbut(:)=0.0d0
  ls=nd; le=1
+! write(*,*)ith,nths,nthe
  do ip=nths,nthe
     a1 => st_leafmtxp%st_lf(ip)%a1
     a2 => st_leafmtxp%st_lf(ip)%a2
@@ -248,7 +301,16 @@ contains
        enddo
      enddo
    elseif(st_leafmtxp%st_lf(ip)%ltmtx==2)then
-      call dgemv('t', ndt, ndl, 1.0d0, a1, ndt, zu(nstrtt-1:nd), 1, 1.0d0, zaut(nstrtl-1:nd), 1)
+!      write(*,*)ith,ip
+!      call dgemv('t', ndt, ndl, rone, st_leafmtxp%st_lf(ip)%a1, ndt, zu(nstrtt), ione, rone, zaut(nstrtl), ione)
+!      call dgemv('t', ndt, ndl, rone, a1, ndt, zu(nstrtt), ione, rone, zaut(nstrtl), ione)
+!      call mydgemv('t', ndt, ndl, 1.0d0, a1, ndt, zu(nstrtt), 1, 1.0d0, zaut(nstrtl), 1)
+!      call mydgemv('t', ndt, ndl, 1.0d0, a1, ndt, zu, 1, 1.0d0, zaut, 1, nstrtt, nstrtl)
+!     OK
+!      call mydgemv2('t', ndt, ndl, 1.0d0, st_leafmtxp%st_lf(ip)%a1, ndt, zu, 1, 1.0d0, zaut, 1, nstrtt, nstrtl)
+!     NG
+      a1 => st_leafmtxp%st_lf(ip)%a1
+      call mydgemv2('t', ndt, ndl, 1.0d0, a1, ndt, zu, 1, 1.0d0, zaut, 1, nstrtt, nstrtl)
 !     do il=1,ndl; ill=il+nstrtl-1
 !       do it=1,ndt; itt=it+nstrtt-1
 !         zaut(ill)=zaut(ill)+st_leafmtxp%st_lf(ip)%a1(it,il)*zu(itt)
@@ -257,13 +319,14 @@ contains
    endif
  enddo
  deallocate(zbut)
- 
+
  do il=ls,le
 !$omp atomic
    zau(il)=zau(il)+zaut(il)
  enddo
- end subroutine HACApK_adot_body_lfmtx_hyp
- 
+ deallocate(zaut)
+end subroutine HACApK_adot_body_lfmtx_hyp
+
 !***HACApK_adotsub_lfmtx_p
  subroutine HACApK_adotsub_lfmtx_p(zr,st_leafmtxp,st_ctl,zu,nd)
  type(st_HACApK_leafmtxp) :: st_leafmtxp
