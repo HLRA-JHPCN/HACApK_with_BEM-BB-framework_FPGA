@@ -41,7 +41,7 @@ endif
 # TSUBAME
 ifeq ($(SYSTEM),TSUBAME)
 #OPTFLAGS = -qopenmp -O3 -ip -xSSE4.1 -mcmodel=large
-OPTFLAGS = -qopenmp -O3 -ip -xSSE4.1 -mcmodel=large -g -CB -traceback
+OPTFLAGS = -qopenmp -O3 -ip -xSSE4.1 -mcmodel=large
 CC=mpicc
 F90=mpif90
 CCFLAGS = $(OPTFLAGS)
