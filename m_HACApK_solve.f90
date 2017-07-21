@@ -244,19 +244,21 @@ subroutine mydgemv3(trans, m, n, alpha, a, lda, x, incx, beta, y, incy)
   integer :: il, it
   real*8 :: alpha, beta, x(*), y(*)
   real*8, pointer :: a(:,:)
+  real*8 :: ytmp
 
   if(trans.eq.'t')then
      do il=1,n
-! SIMD-available?
-! omp simd
+        ytmp = 0.0d0
+!$omp simd reduction(+:ytmp)
         do it=1,m
-           y(il)=y(il)+a(it,il)*x(it)
+!           y(il)=y(il)+a(it,il)*x(it)
+           ytmp=ytmp+a(it,il)*x(it)
         enddo
+        y(il) = y(il) + ytmp
      enddo
   else if(trans.eq.'n')then
      do il=1,n
-! SIMD-available?
-! omp simd
+!$omp simd
         do it=1,m
            y(it)=y(it)+a(it,il)*x(il)
         enddo

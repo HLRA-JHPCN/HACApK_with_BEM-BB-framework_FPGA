@@ -59,9 +59,9 @@ contains
  lrtrn=HACApK_solve(st_leafmtxp,st_bemv,st_ctl,rhs,sol,ztol, 2)
  call MPI_Barrier( icomm, ierr )
 
-! sol(:)=0.0d0
-! lrtrn=HACApK_solve(st_leafmtxp,st_bemv,st_ctl,rhs,sol,ztol, 3)
-! call MPI_Barrier( icomm, ierr )
+ sol(:)=0.0d0
+ lrtrn=HACApK_solve(st_leafmtxp,st_bemv,st_ctl,rhs,sol,ztol, 3)
+ call MPI_Barrier( icomm, ierr )
 
  st_measure_time_ax=MPI_Wtime()
  call HACApK_measurez_time_ax_lfmtx(st_leafmtxp,st_ctl,st_bemv%nd,nstp,lrtrn)
