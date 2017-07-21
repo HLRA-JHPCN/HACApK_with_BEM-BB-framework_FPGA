@@ -835,7 +835,9 @@ endfunction
 !!!$omp end critical
      endif
      st_lf(ip)%kt=kt
-     allocate(st_lf(ip)%a1(ndt,kt),st_lf(ip)%a2(ndl,kt),stat=ierr)
+     allocate(st_lf(ip)%a1(ndt+8,kt+8),st_lf(ip)%a2(ndl+8,kt+8),stat=ierr)
+     st_lf(ip)%a1(:,:) = 0.0d0
+     st_lf(ip)%a2(:,:) = 0.0d0
      if(ierr.ne.0) then
 !$omp critical
         write(*,*) 'sub HACApK_fill_leafmtx_p; a1,a2 Memory allocation failed !'
@@ -847,7 +849,8 @@ endfunction
      st_lf(ip)%a2(1:ndl,1:kt)=zaa(1:ndl,1:kt)
      deallocate(zab,zaa)
    elseif(ltmtx==2)then
-     allocate(st_lf(ip)%a1(ndt,ndl),stat=ierr)
+     allocate(st_lf(ip)%a1(ndt+8,ndl+8),stat=ierr)
+     st_lf(ip)%a1(:,:) = 0.0d0
      if(ierr.ne.0) then
 !$omp critical
         write(*,*) 'sub HACApK_fill_leafmtx_p; a2 Memory allocation failed !'
@@ -909,7 +912,9 @@ endfunction
 !      stop
      endif
      st_lf(ip)%kt=kt
-     allocate(st_lf(ip)%a1(ndt,kt),st_lf(ip)%a2(ndl,kt),stat=ierr)
+     allocate(st_lf(ip)%a1(ndt+8,kt+8),st_lf(ip)%a2(ndl+8,kt+8),stat=ierr)
+     st_lf(ip)%a1(:,:) = 0.0d0
+     st_lf(ip)%a2(:,:) = 0.0d0
      if(ierr.ne.0) then
         print*, 'sub HACApK_fill_leafmtx_p; Memory allocation failed !'
         stop
@@ -918,7 +923,8 @@ endfunction
      st_lf(ip)%a2(1:ndl,1:kt)=zaa(1:ndl,1:kt)
      deallocate(zab,zaa,lodc)
    elseif(st_lf(ip)%ltmtx==2)then
-     allocate(st_lf(ip)%a1(ndt,ndl),stat=ierr)
+     allocate(st_lf(ip)%a1(ndt+8,ndl+8),stat=ierr)
+     st_lf(ip)%a1(:,:) = 0.0d0
      do il=1,ndl; ill=il+nstrtl-1
        do it=1,ndt; itt=it+nstrtt-1
          st_lf(ip)%a1(it,il)=HACApK_entry_ij(lodl(ill),lodt(itt),st_bemv)

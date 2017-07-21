@@ -278,7 +278,7 @@ subroutine HACApK_adot_body_lfmtx_hyp(zau,st_leafmtxp,st_ctl,zu,nd,mode)
   real*8,pointer :: a1(:,:), a2(:,:)
   integer :: ith,ith1,nths,nthe,ls,le,ip,il,it
   integer :: mpinr,mpilog,nrank,icomm,nlf,ktmax,ndl,ndt,nstrtl,nstrtt,kt,itt,ill,nd,ns
-  integer :: mode
+  integer :: mode, nd_pad, ktmax_pad
 1000 format(5(a,i10)/)
 2000 format(5(a,f10.4)/)
 
@@ -290,8 +290,10 @@ subroutine HACApK_adot_body_lfmtx_hyp(zau,st_leafmtxp,st_ctl,zu,nd,mode)
   ith = omp_get_thread_num()
   ith1 = ith+1
   nths=ltmp(ith); nthe=ltmp(ith1)-1
-  allocate(zaut(nd)); zaut(:)=0.0d0
-  allocate(zbut(ktmax)); zbut(:)=0.0d0
+  nd_pad = nd + 8
+  ktmax_pad = ktmax + 8
+  allocate(zaut(nd_pad)); zaut(:)=0.0d0
+  allocate(zbut(ktmax_pad)); zbut(:)=0.0d0
   ls=nd; le=1
   do ip=nths,nthe
      a1 => st_leafmtxp%st_lf(ip)%a1
@@ -518,8 +520,10 @@ end subroutine HACApK_bicgstab_cax_lfmtx_hyp
  integer*4,pointer :: lpmd(:),lnp(:),lsp(:),lthr(:)
  integer*4 :: isct(2),irct(2)
  integer :: mode
+ integer :: nd_pad
  1000 format(5(a,i10)/)
  2000 format(5(a,f10.4)/)
+ nd_pad = nd + 8
  lpmd => st_ctl%lpmd(:); lnp(0:) => st_ctl%lnp; lsp(0:) => st_ctl%lsp;lthr(0:) => st_ctl%lthr
  mpinr=lpmd(3); mpilog=lpmd(4); nrank=lpmd(2); icomm=lpmd(1)
    call MPI_Barrier( icomm, ierr )
@@ -527,8 +531,10 @@ end subroutine HACApK_bicgstab_cax_lfmtx_hyp
  if(st_ctl%param(1)>0 .and. mpinr==0) print*,'HACApK_bicgstab_lfmtx_hyp start'
  mstep=param(83)
  eps=param(91)
- allocate(wws(maxval(lnp(0:nrank-1))),wwr(maxval(lnp(0:nrank-1))))
- allocate(zr(nd),zshdw(nd),zp(nd),zt(nd),zkp(nd),zakp(nd),zkt(nd),zakt(nd))
+ allocate(wws(maxval(lnp(0:nrank-1)+8)),wwr(maxval(lnp(0:nrank-1)+8)))
+ wws(:)=0.0d0; wwr(:)=0.0d0
+ allocate(zr(nd_pad),zshdw(nd_pad),zp(nd_pad),zt(nd_pad),zkp(nd_pad),zakp(nd_pad),zkt(nd_pad),zakt(nd_pad))
+ zr(:)=0.0d0; zshdw(:)=0.0d0; zp(:)=0.0d0; zt(:)=0.0d0; zkp(:)=0.0d0; zakp(:)=0.0d0; zkt(:)=0.0d0; zakt(:)=0.0d0
  alpha = 0.0;  beta = 0.0;  zeta = 0.0;
  zz=HACApK_dotp_d(nd, b, b); bnorm=dsqrt(zz);
 !$omp parallel
