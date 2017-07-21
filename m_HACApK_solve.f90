@@ -124,7 +124,7 @@ contains
  end subroutine HACApK_adot_cax_lfmtx_hyp
 
 !***HACApK_adot_lfmtx_hyp
- subroutine HACApK_adot_lfmtx_hyp(zau,st_leafmtxp,st_ctl,zu,wws,wwr,isct,irct,nd)
+ subroutine HACApK_adot_lfmtx_hyp(zau,st_leafmtxp,st_ctl,zu,wws,wwr,isct,irct,nd,mode)
  include 'mpif.h'
  type(st_HACApK_leafmtxp) :: st_leafmtxp
  type(st_HACApK_lcontrol) :: st_ctl
@@ -133,6 +133,7 @@ contains
  integer*4 :: ISTATUS(MPI_STATUS_SIZE)
  integer*4,pointer :: lpmd(:),lnp(:),lsp(:),lthr(:)
 ! integer*4,dimension(:),allocatable :: ISTATUS
+ integer :: mode
  1000 format(5(a,i10)/)
  2000 format(5(a,f10.4)/)
 
@@ -142,7 +143,7 @@ contains
  ndnr_s=lpmd(6); ndnr_e=lpmd(7); ndnr=lpmd(5)
  zau(:nd)=0.0d0
 !$omp barrier
- call HACApK_adot_body_lfmtx_hyp(zau,st_leafmtxp,st_ctl,zu,nd)
+ call HACApK_adot_body_lfmtx_hyp(zau,st_leafmtxp,st_ctl,zu,nd,mode)
 !$omp barrier
 !$omp master
  if(nrank>1)then
@@ -211,116 +212,129 @@ integer :: nlf, ip, ndl, ndt, ns, nstrtl, nstrtt, kt, nd
  enddo
  end subroutine HACApK_adot_body_lfmtx
 
-subroutine mydgemv(trans, m, n, alpha, a, lda, x, incx, beta, y, incy, t, l)
+subroutine mydgemv2(trans, m, n, alpha, a, lda, x, incx, beta, y, incy)
   implicit none
   character*1 :: trans
-  integer :: m, n, incx, incy, lda, t, l, itt, ill
-  real*8 :: alpha, beta, a(:,:), x(*), y(*)
-  integer :: i, j
-  do i=1,n; ill=i+l-1
-     do j=1,m; itt=j+t-1
-        y(i)=y(i)+a(j,i)*x(j)
-     enddo
-  enddo
-!  do i=1,n
-!     do j=1,m
-!        y(i)=y(i)+a(j,i)*x(j)
-!     enddo
-!  enddo
-end subroutine mydgemv
-
-subroutine mydgemv2(trans, ndt, ndl, alpha, a1, lda, zu, incx, beta, zaut, incy, t, l)
-  implicit none
-  character*1 :: trans
-  integer :: ndt, ndl, incx, incy, lda, t, l, itt, ill
+  integer :: m, n, incx, incy, lda
   integer :: il, it
-!  real*8 :: alpha, beta, a1(:,:), zu(*), zaut(*)
-  real*8 :: alpha, beta, zu(*), zaut(*)
-  real*8, pointer :: a1(:,:)
-!  real*8, pointer, dimension(:,:) :: a1
-  do il=1,ndl; ill=il+l-1
-     do it=1,ndt; itt=it+t-1
-        zaut(ill)=zaut(ill)+a1(it,il)*zu(itt)
+  real*8 :: alpha, beta, x(*), y(*)
+  real*8, pointer :: a(:,:)
+
+  if(trans.eq.'t')then
+     do il=1,n
+        do it=1,m
+           y(il)=y(il)+a(it,il)*x(it)
+        enddo
      enddo
-  enddo
+  else if(trans.eq.'n')then
+     do il=1,n
+        do it=1,m
+           y(it)=y(it)+a(it,il)*x(il)
+        enddo
+     enddo
+  else
+     write(*,*)'mydgemv2: unknown trans'
+  endif
 end subroutine mydgemv2
 
+subroutine mydgemv3(trans, m, n, alpha, a, lda, x, incx, beta, y, incy)
+  implicit none
+  character*1 :: trans
+  integer :: m, n, incx, incy, lda
+  integer :: il, it
+  real*8 :: alpha, beta, x(*), y(*)
+  real*8, pointer :: a(:,:)
+
+  if(trans.eq.'t')then
+     do il=1,n
+! SIMD-available?
+! omp simd
+        do it=1,m
+           y(il)=y(il)+a(it,il)*x(it)
+        enddo
+     enddo
+  else if(trans.eq.'n')then
+     do il=1,n
+! SIMD-available?
+! omp simd
+        do it=1,m
+           y(it)=y(it)+a(it,il)*x(il)
+        enddo
+     enddo
+  else
+     write(*,*)'mydgemv3: unknown trans'
+  endif
+end subroutine mydgemv3
+
 !***HACApK_adot_body_lfmtx_hyp
-subroutine HACApK_adot_body_lfmtx_hyp(zau,st_leafmtxp,st_ctl,zu,nd)
+subroutine HACApK_adot_body_lfmtx_hyp(zau,st_leafmtxp,st_ctl,zu,nd,mode)
   implicit none
   type(st_HACApK_leafmtxp) :: st_leafmtxp
   type(st_HACApK_lcontrol) :: st_ctl
- real*8 :: zau(*),zu(*)
- real*8,dimension(:),allocatable :: zbut
- real*8,dimension(:),allocatable :: zaut
- integer*4,pointer :: lpmd(:),lnp(:),lsp(:),ltmp(:)
- real*8,pointer :: a1(:,:), a2(:,:)
- integer :: ith,ith1,nths,nthe,ls,le,ip,il,it
- integer :: mpinr,mpilog,nrank,icomm,nlf,ktmax,ndl,ndt,nstrtl,nstrtt,kt,itt,ill,nd,ns
- real*8 :: rone
- integer :: ione
- 1000 format(5(a,i10)/)
- 2000 format(5(a,f10.4)/)
+  real*8 :: zau(*),zu(*)
+  real*8,dimension(:),allocatable :: zbut
+  real*8,dimension(:),allocatable :: zaut
+  integer*4,pointer :: lpmd(:),lnp(:),lsp(:),ltmp(:)
+  real*8,pointer :: a1(:,:), a2(:,:)
+  integer :: ith,ith1,nths,nthe,ls,le,ip,il,it
+  integer :: mpinr,mpilog,nrank,icomm,nlf,ktmax,ndl,ndt,nstrtl,nstrtt,kt,itt,ill,nd,ns
+  integer :: mode
+1000 format(5(a,i10)/)
+2000 format(5(a,f10.4)/)
 
- a1 => null(); a2 => null()
+  a1 => null(); a2 => null()
 
- rone = 1.0d0
- ione = 1
- lpmd => st_ctl%lpmd(:); lnp(0:) => st_ctl%lnp; lsp(0:) => st_ctl%lsp;ltmp(0:) => st_ctl%lthr
- mpinr=lpmd(3); mpilog=lpmd(4); nrank=lpmd(2); icomm=lpmd(1)
- nlf=st_leafmtxp%nlf; ktmax=st_leafmtxp%ktmax
- ith = omp_get_thread_num()
- ith1 = ith+1
- nths=ltmp(ith); nthe=ltmp(ith1)-1
- allocate(zaut(nd)); zaut(:)=0.0d0
- allocate(zbut(ktmax)); zbut(:)=0.0d0
- ls=nd; le=1
-! write(*,*)ith,nths,nthe
- do ip=nths,nthe
-    a1 => st_leafmtxp%st_lf(ip)%a1
-    a2 => st_leafmtxp%st_lf(ip)%a2
-   ndl   =st_leafmtxp%st_lf(ip)%ndl   ; ndt   =st_leafmtxp%st_lf(ip)%ndt   ; ns=ndl*ndt
-   nstrtl=st_leafmtxp%st_lf(ip)%nstrtl; nstrtt=st_leafmtxp%st_lf(ip)%nstrtt
-   if(nstrtl<ls) ls=nstrtl; if(nstrtl+ndl-1>le) le=nstrtl+ndl-1
-   if(st_leafmtxp%st_lf(ip)%ltmtx==1)then
-     kt=st_leafmtxp%st_lf(ip)%kt
-     zbut(1:kt)=0.0d0
-     call dgemv('t', ndt, kt, 1.0d0, a1, ndt, zu(nstrtt), 1, 1.0d0, zbut, 1)
-!     do il=1,kt
-!       do it=1,ndt; itt=it+nstrtt-1
-!         zbut(il)=zbut(il)+st_leafmtxp%st_lf(ip)%a1(it,il)*zu(itt)
-!       enddo
-!     enddo
-     call dgemv('n', ndl, kt, 1.0d0, a2, ndl, zbut, 1, 1.0d0, zaut(nstrtl), 1)
-!     do il=1,kt
-!       do it=1,ndl; ill=it+nstrtl-1
-!         zaut(ill)=zaut(ill)+st_leafmtxp%st_lf(ip)%a2(it,il)*zbut(il)
-!       enddo
-!     enddo
-   elseif(st_leafmtxp%st_lf(ip)%ltmtx==2)then
-      call dgemv('t', ndt, ndl, 1.0d0, a1, ndt, zu(nstrtt), 1, 1.0d0, zaut(nstrtl), 1)
-!      call dgemv('t', ndt, ndl, rone, a1, ndt, zu(nstrtt), ione, rone, zaut(nstrtl), ione)
-!      call mydgemv('t', ndt, ndl, 1.0d0, a1, ndt, zu(nstrtt), 1, 1.0d0, zaut(nstrtl), 1)
-!      call mydgemv('t', ndt, ndl, 1.0d0, a1, ndt, zu, 1, 1.0d0, zaut, 1, nstrtt, nstrtl)
-!     OK
-!      call mydgemv2('t', ndt, ndl, 1.0d0, st_leafmtxp%st_lf(ip)%a1, ndt, zu, 1, 1.0d0, zaut, 1, nstrtt, nstrtl)
-!     NG
-!      a1 => st_leafmtxp%st_lf(ip)%a1
-!      call mydgemv2('t', ndt, ndl, 1.0d0, a1, ndt, zu, 1, 1.0d0, zaut, 1, nstrtt, nstrtl)
-!     do il=1,ndl; ill=il+nstrtl-1
-!       do it=1,ndt; itt=it+nstrtt-1
-!         zaut(ill)=zaut(ill)+st_leafmtxp%st_lf(ip)%a1(it,il)*zu(itt)
-!       enddo
-!     enddo
-   endif
- enddo
- deallocate(zbut)
+  lpmd => st_ctl%lpmd(:); lnp(0:) => st_ctl%lnp; lsp(0:) => st_ctl%lsp;ltmp(0:) => st_ctl%lthr
+  mpinr=lpmd(3); mpilog=lpmd(4); nrank=lpmd(2); icomm=lpmd(1)
+  nlf=st_leafmtxp%nlf; ktmax=st_leafmtxp%ktmax
+  ith = omp_get_thread_num()
+  ith1 = ith+1
+  nths=ltmp(ith); nthe=ltmp(ith1)-1
+  allocate(zaut(nd)); zaut(:)=0.0d0
+  allocate(zbut(ktmax)); zbut(:)=0.0d0
+  ls=nd; le=1
+  do ip=nths,nthe
+     a1 => st_leafmtxp%st_lf(ip)%a1
+     a2 => st_leafmtxp%st_lf(ip)%a2
+     ndl   =st_leafmtxp%st_lf(ip)%ndl   ; ndt   =st_leafmtxp%st_lf(ip)%ndt   ; ns=ndl*ndt
+     nstrtl=st_leafmtxp%st_lf(ip)%nstrtl; nstrtt=st_leafmtxp%st_lf(ip)%nstrtt
+     if(nstrtl<ls) ls=nstrtl; if(nstrtl+ndl-1>le) le=nstrtl+ndl-1
+     if(mode.eq.1)then
+        if(st_leafmtxp%st_lf(ip)%ltmtx==1)then
+           kt=st_leafmtxp%st_lf(ip)%kt
+           zbut(1:kt)=0.0d0
+           call dgemv('t', ndt, kt, 1.0d0, a1, ndt, zu(nstrtt), 1, 1.0d0, zbut, 1)
+           call dgemv('n', ndl, kt, 1.0d0, a2, ndl, zbut, 1, 1.0d0, zaut(nstrtl), 1)
+        else if(st_leafmtxp%st_lf(ip)%ltmtx==2)then
+           call dgemv('t', ndt, ndl, 1.0d0, a1, ndt, zu(nstrtt), 1, 1.0d0, zaut(nstrtl), 1)
+        endif
+     else if(mode.eq.2)then
+        if(st_leafmtxp%st_lf(ip)%ltmtx==1)then
+           kt=st_leafmtxp%st_lf(ip)%kt
+           zbut(1:kt)=0.0d0
+           call mydgemv2('t', ndt, kt, 1.0d0, a1, ndt, zu(nstrtt), 1, 1.0d0, zbut, 1)
+           call mydgemv2('n', ndl, kt, 1.0d0, a2, ndl, zbut, 1, 1.0d0, zaut(nstrtl), 1)
+        else if(st_leafmtxp%st_lf(ip)%ltmtx==2)then
+           call mydgemv2('t', ndt, ndl, 1.0d0, a1, ndt, zu(nstrtt), 1, 1.0d0, zaut(nstrtl), 1)
+        endif
+     else if(mode.eq.3)then
+        if(st_leafmtxp%st_lf(ip)%ltmtx==1)then
+           kt=st_leafmtxp%st_lf(ip)%kt
+           zbut(1:kt)=0.0d0
+           call mydgemv3('t', ndt, kt, 1.0d0, a1, ndt, zu(nstrtt), 1, 1.0d0, zbut, 1)
+           call mydgemv3('n', ndl, kt, 1.0d0, a2, ndl, zbut, 1, 1.0d0, zaut(nstrtl), 1)
+        else if(st_leafmtxp%st_lf(ip)%ltmtx==2)then
+           call mydgemv3('t', ndt, ndl, 1.0d0, a1, ndt, zu(nstrtt), 1, 1.0d0, zaut(nstrtl), 1)
+        endif
+     endif
+  enddo
+  deallocate(zbut)
 
- do il=ls,le
-!$omp atomic
-   zau(il)=zau(il)+zaut(il)
- enddo
- deallocate(zaut)
+  do il=ls,le
+     !$omp atomic
+     zau(il)=zau(il)+zaut(il)
+  enddo
+  deallocate(zaut)
 end subroutine HACApK_adot_body_lfmtx_hyp
 
 !***HACApK_adotsub_lfmtx_p
@@ -341,23 +355,24 @@ end subroutine HACApK_adot_body_lfmtx_hyp
  end subroutine HACApK_adotsub_lfmtx_p
  
 !***HACApK_adotsub_lfmtx_hyp
- subroutine HACApK_adotsub_lfmtx_hyp(zr,zau,st_leafmtxp,st_ctl,zu,wws,wwr,isct,irct,nd)
+ subroutine HACApK_adotsub_lfmtx_hyp(zr,zau,st_leafmtxp,st_ctl,zu,wws,wwr,isct,irct,nd,mode)
  type(st_HACApK_leafmtxp) :: st_leafmtxp
  type(st_HACApK_lcontrol) :: st_ctl
  real*8 :: zr(*),zau(*),zu(*),wws(*),wwr(*)
  integer*4 :: isct(*),irct(*)
  integer*4,pointer :: lpmd(:),lnp(:),lsp(:),lthr(:)
+ integer :: mode
  1000 format(5(a,i10)/)
  2000 format(5(a,f10.4)/)
 
  lpmd => st_ctl%lpmd(:); lnp(0:) => st_ctl%lnp; lsp(0:) => st_ctl%lsp;lthr(0:) => st_ctl%lthr
- call HACApK_adot_lfmtx_hyp(zau,st_leafmtxp,st_ctl,zu,wws,wwr,isct,irct,nd)
+ call HACApK_adot_lfmtx_hyp(zau,st_leafmtxp,st_ctl,zu,wws,wwr,isct,irct,nd,mode)
 !$omp barrier
 !$omp workshare
  zr(1:nd)=zr(1:nd)-zau(1:nd)
 !$omp end workshare
  end subroutine HACApK_adotsub_lfmtx_hyp
- 
+
 !***HACApK_bicgstab_lfmtx
  subroutine HACApK_bicgstab_lfmtx(st_leafmtxp,st_ctl,u,b,param,nd,nstp,lrtrn)
  include 'mpif.h'
@@ -442,7 +457,7 @@ end subroutine HACApK_bicgstab_lfmtx
  zp(1:nd)=0.0d0; zakp(1:nd)=0.0d0
  zr(:nd)=b(:nd)
 !$omp end workshare
- call HACApK_adotsub_lfmtx_hyp(zr,zshdw,st_leafmtxp,st_ctl,u,wws,wwr,isct,irct,nd)
+ call HACApK_adotsub_lfmtx_hyp(zr,zshdw,st_leafmtxp,st_ctl,u,wws,wwr,isct,irct,nd,1)
 !$omp barrier
 !$omp workshare
  zshdw(:nd)=zr(:nd)
@@ -492,7 +507,7 @@ end subroutine HACApK_bicgstab_lfmtx
 end subroutine HACApK_bicgstab_cax_lfmtx_hyp
 
 !***HACApK_bicgstab_lfmtx_hyp
- subroutine HACApK_bicgstab_lfmtx_hyp(st_leafmtxp,st_ctl,u,b,param,nd,nstp,lrtrn)
+ subroutine HACApK_bicgstab_lfmtx_hyp(st_leafmtxp,st_ctl,u,b,param,nd,nstp,lrtrn,mode)
  include 'mpif.h'
  type(st_HACApK_leafmtxp) :: st_leafmtxp
  type(st_HACApK_lcontrol) :: st_ctl
@@ -502,6 +517,7 @@ end subroutine HACApK_bicgstab_cax_lfmtx_hyp
  real*8,dimension(:),allocatable :: wws,wwr
  integer*4,pointer :: lpmd(:),lnp(:),lsp(:),lthr(:)
  integer*4 :: isct(2),irct(2)
+ integer :: mode
  1000 format(5(a,i10)/)
  2000 format(5(a,f10.4)/)
  lpmd => st_ctl%lpmd(:); lnp(0:) => st_ctl%lnp; lsp(0:) => st_ctl%lsp;lthr(0:) => st_ctl%lthr
@@ -520,7 +536,7 @@ end subroutine HACApK_bicgstab_cax_lfmtx_hyp
  zp(1:nd)=0.0d0; zakp(1:nd)=0.0d0
  zr(:nd)=b(:nd)
 !$omp end workshare
- call HACApK_adotsub_lfmtx_hyp(zr,zshdw,st_leafmtxp,st_ctl,u,wws,wwr,isct,irct,nd)
+ call HACApK_adotsub_lfmtx_hyp(zr,zshdw,st_leafmtxp,st_ctl,u,wws,wwr,isct,irct,nd,mode)
 !$omp barrier
 !$omp workshare
  zshdw(:nd)=zr(:nd)
@@ -535,7 +551,7 @@ end subroutine HACApK_bicgstab_cax_lfmtx_hyp
    zp(:nd) =zr(:nd)+beta*(zp(:nd)-zeta*zakp(:nd))
    zkp(:nd)=zp(:nd)
 !$omp end workshare
-   call HACApK_adot_lfmtx_hyp(zakp,st_leafmtxp,st_ctl,zkp,wws,wwr,isct,irct,nd)
+   call HACApK_adot_lfmtx_hyp(zakp,st_leafmtxp,st_ctl,zkp,wws,wwr,isct,irct,nd,mode)
 !$omp barrier
 !$omp single
    znom=HACApK_dotp_d(nd,zshdw,zr); zden=HACApK_dotp_d(nd,zshdw,zakp);
@@ -545,7 +561,7 @@ end subroutine HACApK_bicgstab_cax_lfmtx_hyp
    zt(:nd)=zr(:nd)-alpha*zakp(:nd)
    zkt(:nd)=zt(:nd)
 !$omp end workshare
-   call HACApK_adot_lfmtx_hyp(zakt,st_leafmtxp,st_ctl,zkt,wws,wwr,isct,irct,nd)
+   call HACApK_adot_lfmtx_hyp(zakt,st_leafmtxp,st_ctl,zkt,wws,wwr,isct,irct,nd,mode)
 !$omp barrier
 !$omp single
    znom=HACApK_dotp_d(nd,zakt,zt); zden=HACApK_dotp_d(nd,zakt,zakt);
@@ -598,7 +614,7 @@ end subroutine HACApK_bicgstab_lfmtx_hyp
  allocate(zr(nd),zar(nd),zp(nd,mreset),zap(nd,mreset),capap(mreset))
  alpha = 0.0
  zz=HACApK_dotp_d(nd, b, b); bnorm=dsqrt(zz);
- call HACApK_adot_lfmtx_hyp(zar,st_leafmtxp,st_ctl,u,wws,wwr,isct,irct,nd)
+ call HACApK_adot_lfmtx_hyp(zar,st_leafmtxp,st_ctl,u,wws,wwr,isct,irct,nd,1)
  zr(:nd)=b(:nd)-zar(:nd)
  zp(:nd,1)=zr(:nd)
  zrnorm2=HACApK_dotp_d(nd,zr,zr); zrnorm=dsqrt(zrnorm2)
@@ -607,7 +623,7 @@ end subroutine HACApK_bicgstab_lfmtx_hyp
    time = en_measure_time - st_measure_time
    if(st_ctl%param(1)>0 .and. mpinr==0) print*,0,time,log10(zrnorm/bnorm)
  if(zrnorm/bnorm<eps) return
- call HACApK_adot_lfmtx_hyp(zap(:nd,1),st_leafmtxp,st_ctl,zp(:nd,1),wws,wwr,isct,irct,nd)
+ call HACApK_adot_lfmtx_hyp(zap(:nd,1),st_leafmtxp,st_ctl,zp(:nd,1),wws,wwr,isct,irct,nd,1)
  do in=1,mstep
    ik=mod(in-1,mreset)+1
    zq=>zap(:nd,ik)
@@ -622,7 +638,7 @@ end subroutine HACApK_bicgstab_lfmtx_hyp
    time = en_measure_time - st_measure_time
    if(st_ctl%param(1)>0 .and. mpinr==0) print*,in,time,log10(zrnorm/bnorm)
    if(zrnorm/bnorm<eps .or. in==mstep) exit
-   call HACApK_adot_lfmtx_hyp(zar,st_leafmtxp,st_ctl,zr,wws,wwr,isct,irct,nd)
+   call HACApK_adot_lfmtx_hyp(zar,st_leafmtxp,st_ctl,zr,wws,wwr,isct,irct,nd,1)
    ikn=mod(in,mreset)+1
    zp(:nd,ikn)=zr(:nd)
    zap(:nd,ikn)=zar(:nd)
@@ -656,7 +672,7 @@ end subroutine
 !$omp parallel private(il)
  do il=1,mstep
    u(:)=1.0; b(:)=1.0
-   call HACApK_adot_lfmtx_hyp(u,st_leafmtxp,st_ctl,b,wws,wwr,isct,irct,nd)
+   call HACApK_adot_lfmtx_hyp(u,st_leafmtxp,st_ctl,b,wws,wwr,isct,irct,nd,1)
  enddo
 !$omp end parallel
  deallocate(wws,wwr)
@@ -757,7 +773,7 @@ end function HACApK_adot_pmt_lfmtx_p
  call MPI_Barrier( icomm, ierr )
 !$omp parallel
 !$omp barrier
- call HACApK_adot_lfmtx_hyp(au,st_leafmtxp,st_ctl,u,wws,wwr,isct,irct,nd)
+ call HACApK_adot_lfmtx_hyp(au,st_leafmtxp,st_ctl,u,wws,wwr,isct,irct,nd,1)
 !$omp barrier
 !$omp end parallel
  call MPI_Barrier( icomm, ierr )

@@ -48,8 +48,21 @@ contains
  icomm=st_ctl%lpmd(1)
  lrtrn=HACApK_generate(st_leafmtxp,st_bemv,st_ctl,gmid,ztol)
  call MPI_Barrier( icomm, ierr )
- lrtrn=HACApK_solve(st_leafmtxp,st_bemv,st_ctl,rhs,sol,ztol)
+
+ ! MKL
+ sol(:)=0.0d0
+ lrtrn=HACApK_solve(st_leafmtxp,st_bemv,st_ctl,rhs,sol,ztol, 1)
  call MPI_Barrier( icomm, ierr )
+
+ ! own code
+ sol(:)=0.0d0
+ lrtrn=HACApK_solve(st_leafmtxp,st_bemv,st_ctl,rhs,sol,ztol, 2)
+ call MPI_Barrier( icomm, ierr )
+
+! sol(:)=0.0d0
+! lrtrn=HACApK_solve(st_leafmtxp,st_bemv,st_ctl,rhs,sol,ztol, 3)
+! call MPI_Barrier( icomm, ierr )
+
  st_measure_time_ax=MPI_Wtime()
  call HACApK_measurez_time_ax_lfmtx(st_leafmtxp,st_ctl,st_bemv%nd,nstp,lrtrn)
  en_measure_time_ax=MPI_Wtime()
@@ -175,7 +188,7 @@ contains
  endfunction
 
 !*** HACApK_solve
- integer function HACApK_solve(st_leafmtxp,st_bemv,st_ctl,rhs,sol,ztol)
+ integer function HACApK_solve(st_leafmtxp,st_bemv,st_ctl,rhs,sol,ztol,mode)
  include 'mpif.h'
  type(st_HACApK_leafmtxp) :: st_leafmtxp
  type(st_HACApK_lcontrol) :: st_ctl
@@ -184,13 +197,15 @@ contains
  real*8,pointer :: param(:)
  real*8,dimension(:),allocatable :: u,b,www,ao
  integer*4,pointer :: lpmd(:),lnp(:),lsp(:),lthr(:),lod(:)
+ integer :: mode
  1000 format(5(a,i10)/)
- 2000 format(5(a,1pe15.8)/)
+! 2000 format(5(a,1pe15.8)/)
+2000 format(a,i1,a,e15.8)
 
  lpmd => st_ctl%lpmd(:); lnp(0:) => st_ctl%lnp; lsp(0:) => st_ctl%lsp;lthr(0:) => st_ctl%lthr;lod => st_ctl%lod(:); param=>st_ctl%param(:)
  mpinr=lpmd(3); mpilog=lpmd(4); nrank=lpmd(2); icomm=lpmd(1); nthr=lpmd(20)
  param(91)=ztol
- if(st_ctl%param(1)>0 .and. mpinr==0) print*,'HACApK_solve start'
+ if(st_ctl%param(1)>0 .and. mpinr==0) print*,'HACApK_solve', mode ,'start'
  nofc=st_bemv%nd;nffc=1;ndim=3
  nd=nofc*nffc
  if(st_ctl%param(1)>1) write(*,*) 'irank=',mpinr,' lthr=',lthr(0:nthr-1)
@@ -213,7 +228,7 @@ contains
    st_measure_time_bicgstab=MPI_Wtime()
    if(param(85)==1)then
 !     call HACApK_bicgstab_lfmtx(st_leafmtxp,st_ctl,u,b,param,nd,nstp,lrtrn)
-     call HACApK_bicgstab_lfmtx_hyp(st_leafmtxp,st_ctl,u,b,param,nd,nstp,lrtrn)
+     call HACApK_bicgstab_lfmtx_hyp(st_leafmtxp,st_ctl,u,b,param,nd,nstp,lrtrn,mode)
    elseif(param(85)==2)then
      call HACApK_gcrm_lfmtx(st_leafmtxp,st_ctl,st_bemv,u,b,param,nd,nstp,lrtrn)
    else
@@ -221,8 +236,8 @@ contains
    call MPI_Barrier( icomm, ierr )
    en_measure_time_bicgstab=MPI_Wtime()
    time_bicgstab = en_measure_time_bicgstab - st_measure_time_bicgstab
-   if(st_ctl%param(1)>0 .and. mpinr==0)  write(6,2000)              'time_HACApK_solve  =',time_bicgstab
-   if(st_ctl%param(1)>0 .and. mpinr==0 .and. nstp>1)  write(6,2000) '       time_1step  =',time_bicgstab/nstp
+   if(st_ctl%param(1)>0 .and. mpinr==0)  write(6,2000)              'time_HACApK_solve_',mode,'  =',time_bicgstab
+   if(st_ctl%param(1)>0 .and. mpinr==0 .and. nstp>1)  write(6,2000) '       time_1step_',mode,'  =',time_bicgstab/nstp
    allocate(www(nd))
    sol(:nd)=0.0d0; www(lod(:nd))=u(:nd); sol(:nd)=www(:nd)
    deallocate(www)
