@@ -633,6 +633,16 @@ end subroutine HACApK_bicgstab_lfmtx
 !$omp end parallel
 end subroutine HACApK_bicgstab_cax_lfmtx_hyp
 
+ subroutine HACApK_bicgstab_dump(st_leafmtxp,st_ctl,u,b,param,nd,nstp,lrtrn)
+ include 'mpif.h'
+ type(st_HACApK_leafmtxp) :: st_leafmtxp
+ type(st_HACApK_lcontrol) :: st_ctl
+ integer :: lrtrn, nd, nstp
+ real*8 :: u(nd),b(nd)
+ real*8 :: param(*)
+ call c_HACApK_bicgstab_dump(st_leafmtxp,u,b,param,nd,nstp)
+end subroutine HACApK_bicgstab_dump
+
 !***HACApK_bicgstab_lfmtx_hyp
  subroutine HACApK_bicgstab_lfmtx_hyp(st_leafmtxp,st_ctl,u,b,param,nd,nstp,lrtrn)
  implicit none

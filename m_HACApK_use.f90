@@ -339,14 +339,17 @@ endfunction HACApK_solve_cax
 
    call MPI_Barrier( icomm, ierr )
    st_measure_time_bicgstab=MPI_Wtime()
-   if(param(85)==1)then
-!     call HACApK_bicgstab_lfmtx(st_leafmtxp,st_ctl,u,b,param,nd,nstp,lrtrn)
-!     call HACApK_bicgstab_lfmtx_hyp(st_leafmtxp,st_ctl,u,b,param,nd,nstp,lrtrn)
-     call HACApK_bicgstab_lfmtx_hyp_mkl(st_leafmtxp,st_ctl,u,b,param,nd,nstp,lrtrn)
-   elseif(param(85)==2)then
-     call HACApK_gcrm_lfmtx(st_leafmtxp,st_ctl,st_bemv,u,b,param,nd,nstp,lrtrn)
-   else
-   endif
+
+   call HACApK_bicgstab_dump(st_leafmtxp,st_ctl,u,b,param,nd,nstp,lrtrn)
+
+!   if(param(85)==1)then
+!!     call HACApK_bicgstab_lfmtx(st_leafmtxp,st_ctl,u,b,param,nd,nstp,lrtrn)
+!!     call HACApK_bicgstab_lfmtx_hyp(st_leafmtxp,st_ctl,u,b,param,nd,nstp,lrtrn)
+!     call HACApK_bicgstab_lfmtx_hyp_mkl(st_leafmtxp,st_ctl,u,b,param,nd,nstp,lrtrn)
+!   elseif(param(85)==2)then
+!     call HACApK_gcrm_lfmtx(st_leafmtxp,st_ctl,st_bemv,u,b,param,nd,nstp,lrtrn)
+!   else
+!   endif
    call MPI_Barrier( icomm, ierr )
    en_measure_time_bicgstab=MPI_Wtime()
    time_bicgstab = en_measure_time_bicgstab - st_measure_time_bicgstab
